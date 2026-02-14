@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -38,8 +41,12 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
+	port, err := getPort()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	server := server.NewServer()
+	server := server.NewServer(port)
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)
@@ -47,7 +54,7 @@ func main() {
 	// Run graceful shutdown in a separate goroutine
 	go gracefulShutdown(server, done)
 
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(fmt.Sprintf("http server error: %s", err))
 	}
@@ -55,4 +62,27 @@ func main() {
 	// Wait for the graceful shutdown to complete
 	<-done
 	log.Println("Graceful shutdown complete.")
+}
+
+func getPort() (int, error) {
+	portFromEnv := 8080
+
+	// Get port from .env file (envdotgo)
+	if v := os.Getenv("PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return 0, fmt.Errorf("Invalid Port %w", err)
+		}
+		portFromEnv = p
+	}
+
+	// Flags for override
+	port := flag.Int("port", portFromEnv, "api server port")
+	flag.Parse()
+
+	if *port < 1 || *port > 65535 {
+		return 0, fmt.Errorf("port out of range %d", *port)
+	}
+
+	return *port, nil
 }
