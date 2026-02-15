@@ -15,6 +15,15 @@ import (
 	"khadgar/internal/server"
 )
 
+// NOTES:
+// - DB and app are two separate processes
+// - .env file has variables we use for development and therefore should not be committed
+// - godotenv is a library that gives go functionality to read and parse .env files
+// - _ "github.com/joho/godotenv/autoload" specifically loads the .env in to the environments on init
+// This init happens from server package and as you can see the server package is imported here, which causes
+// godotenv to init before getPort and subsequently Getenv gets called.
+// This .env file can also be read directly from docker-compose files if they are in the same folder
+
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -46,7 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server := server.NewServer(port)
+	server := server.New(port)
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)

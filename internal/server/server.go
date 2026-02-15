@@ -18,7 +18,7 @@ type Server struct {
 	logger *slog.Logger
 }
 
-func NewServer(port int) *http.Server {
+func New(port int) *http.Server {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	NewServer := &Server{
@@ -30,7 +30,7 @@ func NewServer(port int) *http.Server {
 	// Declare Server config
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", NewServer.port),
-		Handler:      NewServer.RegisterRoutes(),
+		Handler:      NewServer.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

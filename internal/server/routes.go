@@ -4,18 +4,22 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
-func (s *Server) RegisterRoutes() http.Handler {
-	mux := http.NewServeMux()
+func (s *Server) routes() http.Handler {
+	r := chi.NewRouter()
 
-	// Register routes
-	mux.HandleFunc("/", s.HelloWorldHandler)
+	r.Use(middleware.Logger, middleware.Recoverer)
+	r.Get("/health", s.healthHandler)
 
-	mux.HandleFunc("/health", s.healthHandler)
-
-	// Wrap the mux with CORS middleware
-	return s.corsMiddleware(mux)
+	r.Route("/v1/scraper", func(r chi.Router) {
+		r.Post("/jobs/{jobType}", s.triggerScrapeHandler)
+	})
+	return s.corsMiddleware(r)
 }
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
@@ -60,4 +64,11 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(resp); err != nil {
 		log.Printf("Failed to write response: %v", err)
 	}
+}
+
+func (s *Server) triggerScrapeHandler(w http.ResponseWriter, r *http.Request) {
+	jobType := chi.URLParam(r, "jobType")
+	jobType = strings.ToLower(jobType)
+
+	log.Printf("This is the post of scraper %s", jobType)
 }
