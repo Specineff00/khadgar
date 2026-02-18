@@ -1,28 +1,19 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	_ "embed"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
-	"github.com/gocolly/colly"
+	"khadgar"
+
+	"github.com/Khan/genqlient/graphql"
 )
-
-//go:embed get_companies.graphql
-var getCompaniesQuery string
 
 //go:generate go run github.com/Khan/genqlient ../../genqlient.yaml
 func main() {
 	// TODO:
-	// Make structs for information you need
-	// Get list of companies url OR try find their api to get the companies list
-	// Inspect company name and target that specific item
-	// ForEach through the list
 	// Pitstop 1: Print what you have
 	// Figure out how to deal with pagination and see if pages can be loaded concurrently
 	// If concurrency, then learn how to utilise
@@ -32,154 +23,71 @@ func main() {
 	pingGraphQLEndpoint()
 }
 
+// pingGraphQLEndpoint demonstrates the genqlient flow for this scraper.
+//
+// How this works:
+// 1. Schema + operation:
+//   - `schema.graphql` is a local stub of the remote API shape.
+//   - `queries/GetCompanies.graphql` defines the operation we want.
+//
+// 2. Code generation:
+//   - `go generate ./...` runs genqlient and creates typed Go code in `generated.go`.
+//   - That generated function is `khadgar.PersonalisedCompanies(...)`.
+//
+// 3. Runtime request:
+//   - We create an `http.Client` with a custom RoundTripper (`headerTransport`)
+//     to inject headers (e.g. User-Agent) that this endpoint expects.
+//   - We wrap it with `graphql.NewClient(url, httpClient)`.
+//   - We call the generated function with typed variables (offset, limit, companyName).
+//
+// 4. Typed response:
+//   - genqlient unmarshals JSON into typed structs, so we iterate
+//     `resp.PersonalisedCompanies` directly (no manual payload/decoder structs).
+//
+// Note:
+//   - The local schema is only for codegen/type-checking.
+//   - As long as queried fields/types/nullability match the real API behavior,
+//     generated requests/responses will work even if the full server schema is unknown.
 func pingGraphQLEndpoint() {
 	url := "https://api.exp.welcometothejungle.com/graphql"
 
-	// 1. Define the GraphQL Query (The one you found in the Network tab)
-	// I'm using a simplified version for testing
-
-	// 2. Define Variables (Start at 0, get 5 companies)
-	variables := map[string]any{
-		"offset":      0,
-		"limit":       5,
-		"companyName": "",
+	httpClient := &http.Client{
+		Transport: headerTransport{
+			base: http.DefaultTransport,
+			headers: map[string]string{
+				"User-Agent":   "Mozilla/5.0...",
+				"Content-Type": "application/json",
+			},
+		},
 	}
 
-	// 3. Create the JSON payload
-	payload := map[string]any{
-		"query":     getCompaniesQuery,
-		"variables": variables,
-	}
+	gqlClient := graphql.NewClient(url, httpClient)
 
-	body, _ := json.Marshal(payload)
-
-	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	// Mimic a real browser
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
-
-	client := http.Client{}
-	resp, err := client.Do(req)
+	resp, err := khadgar.PersonalisedCompanies(context.Background(), gqlClient, 0, 5, "")
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	var result WTTJCompanies
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		fmt.Printf("Decode Error: %s\n", err)
+		fmt.Printf("Some error %s", err)
 		return
 	}
 
-	for _, comp := range result.Data.PersonalisedCompanies {
+	for _, comp := range resp.PersonalisedCompanies {
 		fmt.Printf("--- \nName: %s\nSize: %s\nDescription: %s\n", comp.Name, comp.Size.Value, comp.ShortDescription)
 	}
 }
 
-func scrapeCompanyName() {
-	c := colly.NewCollector()
-
-	fmt.Print("Starting")
-	c.OnHTML("a[href^='/companies/']", func(e *colly.HTMLElement) {
-		fmt.Println("full", e.Text)
-		// 1. Target the Description (the <p> tag)
-		// We use the 'Starts With' selector to be safe
-		description := e.ChildText("p[class^='sc-']")
-
-		fmt.Println("Description:", description)
-	})
-
-	c.Visit("https://app.welcometothejungle.com/companies")
+type headerTransport struct {
+	base    http.RoundTripper
+	headers map[string]string
 }
 
-type company struct {
-	name    string
-	size    string
-	summary string
-}
-
-// TODO: How do move this into internal?
-
-type submission struct {
-	URL           string `selector:"span.titleline > a[href]" attr:"href"`
-	Title         string `selector:"span.titleline > a"`
-	Site          string `selector:"span.sitestr"`
-	Id            string
-	Score         string `selector:"span.score"`
-	TotalComments int
-	Comments      []*comment
-}
-
-type comment struct {
-	Author    string `selector:"a.hnuser"`
-	Permalink string `selector:".age a[href]" attr:"href"`
-	Comment   string `selector:".comment"`
-}
-
-func exampleScraperHandler() {
-	// Get the post id as input
-	var itemID string
-	flag.StringVar(&itemID, "id", "", "hackernews post id")
-	flag.Parse()
-
-	if itemID == "" {
-		println("Hackernews post id is required")
-		os.Exit(1)
+func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	for k, v := range t.headers {
+		clone.Header.Set(k, v)
 	}
 
-	s := &submission{}
-	comments := make([]*comment, 0)
-	s.Comments = comments
-	s.TotalComments = 0
-
-	// Instantiate default collector
-	c := colly.NewCollector()
-	c.OnHTML("html", func(e *colly.HTMLElement) {
-		// Unmarshal the submission struct only on the first page
-		if s.Id == "" {
-			e.Unmarshal(s)
-		}
-		s.Id = e.Request.URL.Query().Get("id")
-
-		// Loop over the comment list
-		e.ForEach(".comment-tree tr.athing", func(i int, commentElement *colly.HTMLElement) {
-			c := &comment{}
-
-			commentElement.Unmarshal(c)
-			c.Comment = strings.TrimSpace(c.Comment[:len(c.Comment)-5])
-			c.Permalink = commentElement.Request.AbsoluteURL(c.Permalink)
-			s.Comments = append(s.Comments, c)
-			s.TotalComments += 1
-		})
-	})
-
-	// Handle pagination
-	c.OnHTML("a.morelink", func(e *colly.HTMLElement) {
-		c.Visit(e.Request.AbsoluteURL(e.Attr("href")))
-	})
-
-	// Go to the submission page
-	c.Visit("https://news.ycombinator.com/item?id=" + itemID)
-
-	// Dump json to the standard output (terminal)
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.Encode(s)
-}
-
-type WTTJCompanies struct {
-	Data struct {
-		PersonalisedCompanies []struct {
-			JobLocations []string `json:"jobLocations"`
-			Name         string   `json:"name"`
-			SectorTags   []struct {
-				Value string `json:"value"`
-			} `json:"sectorTags"`
-			ShortDescription string `json:"shortDescription"`
-			Size             struct {
-				Value string `json:"value"`
-			} `json:"size"`
-		} `json:"personalisedCompanies"`
-	} `json:"data"`
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(clone)
 }
