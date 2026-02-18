@@ -1,0 +1,17 @@
+schema {
+  query: Query
+}
+
+type Query {
+  personalisedCompanies(offset: Int!, limit: Int!, companyName: String!): [Company!]!
+}
+
+type Company {
+  name: String
+  shortDescription: String
+  size: CompanySize
+}
+
+type CompanySize {
+  value: String
+}

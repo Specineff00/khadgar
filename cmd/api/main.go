@@ -43,7 +43,6 @@ func main() {
 	// Start the server
 	err = app.serve()
 	if err != nil {
-		logger.Error(err.Error())
 		os.Exit(1)
 	}
 }

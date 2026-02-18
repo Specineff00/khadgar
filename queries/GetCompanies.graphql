@@ -1,0 +1,7 @@
+query PersonalisedCompanies($offset: Int!, $limit: Int!, $companyName: String!) {
+	  personalisedCompanies(offset: $offset, limit: $limit, companyName: $companyName) {
+	    name
+	    shortDescription
+	    size { value }
+	  }
+}

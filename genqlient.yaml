@@ -1,0 +1,4 @@
+schema: "schema.graphql"
+operations:
+  - "queries/*.graphql" # Where you store your .graphql files
+generated: "generated.go" # Where the generated code will live
