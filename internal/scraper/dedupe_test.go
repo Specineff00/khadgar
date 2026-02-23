@@ -241,7 +241,26 @@ func TestMergeUnique_AllRandomCaseSameNameCompanies_ReturnsNoChange(t *testing.T
 	testEquality(t, got, want)
 }
 
-func TestMergeUnique_RandomMixedCompanies_ReturnsCorrectList(t *testing.T) {
+func TestMergeUnique_AddEmpty_ReturnsNoChange(t *testing.T) {
+	existing := []Company{}
+	page := []Company{
+		{
+			Name:             "",
+			ShortDescription: "empty af",
+			Size:             "zero",
+		},
+	}
+
+	seen := makeListOfSeenNames([]string{"acme", "merz b"})
+	got := mergeUnique(existing, page, seen)
+	want := existing
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("mergeUnique got %v, want %v", got, want)
+	}
+}
+
+func TestMergeUnique_RandomMixedAndEmptyCompanies_ReturnsCorrectLowerCasedList(t *testing.T) {
 	existing := []Company{}
 
 	page := []Company{
@@ -249,6 +268,11 @@ func TestMergeUnique_RandomMixedCompanies_ReturnsCorrectList(t *testing.T) {
 			Name:             "AMazon",
 			ShortDescription: "description",
 			Size:             "100",
+		},
+		{
+			Name:             "",
+			ShortDescription: "empty af",
+			Size:             "zero",
 		},
 		{
 			Name:             "Weyland Yutani",
@@ -259,6 +283,11 @@ func TestMergeUnique_RandomMixedCompanies_ReturnsCorrectList(t *testing.T) {
 			Name:             "ceraVe",
 			ShortDescription: "description",
 			Size:             "100",
+		},
+		{
+			Name:             "",
+			ShortDescription: "empty af",
+			Size:             "zero",
 		},
 		{
 			Name:             "FaceBook",

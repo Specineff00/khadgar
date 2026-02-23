@@ -2,9 +2,10 @@ package scraper
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"log"
 	"net/http"
-	"strings"
+	"time"
 
 	"khadgar"
 
@@ -40,6 +41,7 @@ func FetchCompanies() {
 	url := "https://api.exp.welcometothejungle.com/graphql"
 
 	httpClient := &http.Client{
+		Timeout: 20 * time.Second,
 		Transport: headerTransport{
 			base: http.DefaultTransport,
 			headers: map[string]string{
@@ -56,20 +58,44 @@ func FetchCompanies() {
 		maxPages = 200
 	)
 
+	retryConfig := RetryConfig{
+		MaxAttempts: 4,
+		BaseDelay:   250 * time.Millisecond,
+		MaxDelay:    5 * time.Second,
+		JitterFrac:  0.2,
+	}
+	ctx := context.Background()
 	all := make([]Company, 0, 2000)
 	seen := make(map[string]struct{}) // dedupe key
 
 	for page := range maxPages {
 
-		resp, err := khadgar.PersonalisedCompanies(
-			context.Background(),
-			gqlClient,
-			nextOffset(page, limit),
-			limit,
-			"",
-		)
+		var resp *khadgar.PersonalisedCompaniesResponse
+		err := doWithRetry(ctx, retryConfig, func(ctx context.Context) (statusCode int, err error) {
+			r, err := khadgar.PersonalisedCompanies(
+				ctx,
+				gqlClient,
+				nextOffset(page, limit),
+				limit,
+				"",
+			)
+			if err != nil {
+				return statusCodeFromError(err), err
+			}
+
+			resp = r
+			return http.StatusOK, nil
+		})
 		if err != nil {
-			fmt.Printf("Some error %s", err)
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				log.Printf("scrape canceled: %v", err)
+				return
+			}
+			log.Printf("fetch companies page=%d failed after retries: %v", page, err)
+			return
+		}
+		if resp == nil {
+			log.Printf("fetch companies page=%d returned nil response", page)
 			return
 		}
 
@@ -79,22 +105,8 @@ func FetchCompanies() {
 			return
 		}
 
-		for _, c := range resp.PersonalisedCompanies {
-			// Prefer stable ID if available. Name fallback is imperfect.
-			key := strings.ToLower(strings.TrimSpace(c.Name))
-
-			if _, exists := seen[key]; exists {
-				continue
-			}
-
-			seen[key] = struct{}{}
-
-			all = append(all, Company{
-				Name:             c.Name,
-				ShortDescription: c.ShortDescription,
-				Size:             c.Size.Value,
-			})
-		}
+		mappedPage := toCompanies(resp.PersonalisedCompanies)
+		all = mergeUnique(all, mappedPage, seen)
 
 		// Last partial page => likely end.
 		// So 32 would be considered added and therefore it's time to break out and finish
