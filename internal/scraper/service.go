@@ -27,6 +27,15 @@ type Company struct {
 	Size             string
 }
 
+func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) *Service {
+	return &Service{
+		RetryConfig: retry,
+		DB:          database.New(),
+		GQClient:    client,
+		Logger:      logger.With("component", "scraper"),
+	}
+}
+
 // FetchCompanies demonstrates the genqlient flow for this scraper.
 //
 // How this works:
@@ -52,7 +61,7 @@ type Company struct {
 //   - The local schema is only for codegen/type-checking.
 //   - As long as queried fields/types/nullability match the real API behavior,
 //     generated requests/responses will work even if the full server schema is unknown.
-func (s Service) FetchCompanies(ctx context.Context) ([]Company, error) {
+func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	const (
 		limit    = 100
 		maxPages = 200
@@ -64,7 +73,7 @@ func (s Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	for page := range maxPages {
 
 		var resp *khadgar.PersonalisedCompaniesResponse
-		err := doWithRetry(ctx, s.RetryConfig, func(ctx context.Context) (statusCode int, err error) {
+		err := s.doWithRetry(ctx, func(ctx context.Context) (statusCode int, err error) {
 			r, err := khadgar.PersonalisedCompanies(
 				ctx,
 				s.GQClient,

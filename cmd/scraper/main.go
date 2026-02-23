@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	_ "embed"
-	"log"
 	"log/slog"
 	"os"
 	"time"
 
-	"khadgar/internal/platform/database"
 	"khadgar/internal/scraper"
 )
 
@@ -25,17 +23,13 @@ func main() {
 	client := scraper.NewClient(url)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	service := scraper.Service{
-		RetryConfig: retryConfig,
-		DB:          database.New(),
-		GQClient:    client,
-		Logger:      logger,
-	}
+	service := scraper.NewService(retryConfig, client, logger)
 
 	companies, err := service.FetchCompanies(context.Background())
 	if err != nil {
-		log.Print(err.Error())
+		logger.Error("scrape failed", "err", err)
+		os.Exit(1)
 	}
 
-	log.Printf("%v", companies)
+	logger.Info("scraping done", "companies", companies)
 }

@@ -64,33 +64,33 @@ type RetryConfig struct {
 	JitterFrac  float64
 }
 
-func doWithRetry(ctx context.Context, cfg RetryConfig, fn func(context.Context) (statusCode int, err error)) error {
-	if cfg.MaxAttempts < 1 {
-		cfg.MaxAttempts = 1
+func (s *Service) doWithRetry(ctx context.Context, fn func(context.Context) (statusCode int, err error)) error {
+	if s.RetryConfig.MaxAttempts < 1 {
+		s.RetryConfig.MaxAttempts = 1
 	}
 
-	if cfg.BaseDelay <= 0 {
-		cfg.BaseDelay = 250 * time.Millisecond
+	if s.RetryConfig.BaseDelay <= 0 {
+		s.RetryConfig.BaseDelay = 250 * time.Millisecond
 	}
 
-	if cfg.MaxDelay < cfg.BaseDelay {
-		cfg.MaxDelay = cfg.BaseDelay
+	if s.RetryConfig.MaxDelay < s.RetryConfig.BaseDelay {
+		s.RetryConfig.MaxDelay = s.RetryConfig.BaseDelay
 	}
 
 	var lastErr error
 
-	for attempt := range cfg.MaxAttempts {
+	for attempt := range s.RetryConfig.MaxAttempts {
 		statusCode, err := fn(ctx)
 		if err == nil {
 			return nil
 		}
 		lastErr = err
 
-		if !isRetryable(err, statusCode) || attempt == cfg.MaxAttempts-1 {
+		if !isRetryable(err, statusCode) || attempt == s.RetryConfig.MaxAttempts-1 {
 			break
 		}
 
-		delay := nextBackoff(attempt, cfg.BaseDelay, cfg.MaxDelay, cfg.JitterFrac)
+		delay := nextBackoff(attempt, s.RetryConfig.BaseDelay, s.RetryConfig.MaxDelay, s.RetryConfig.JitterFrac)
 
 		timer := time.NewTimer(delay)
 		select {
