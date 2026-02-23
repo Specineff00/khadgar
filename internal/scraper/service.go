@@ -3,14 +3,29 @@ package scraper
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
-	"time"
+
+	"khadgar/internal/platform/database"
 
 	"khadgar"
 
 	"github.com/Khan/genqlient/graphql"
 )
+
+type Service struct {
+	RetryConfig RetryConfig
+	DB          database.Service
+	GQClient    graphql.Client
+	Logger      *slog.Logger
+}
+
+type Company struct {
+	Name             string
+	ShortDescription string
+	Size             string
+}
 
 // FetchCompanies demonstrates the genqlient flow for this scraper.
 //
@@ -37,44 +52,22 @@ import (
 //   - The local schema is only for codegen/type-checking.
 //   - As long as queried fields/types/nullability match the real API behavior,
 //     generated requests/responses will work even if the full server schema is unknown.
-func FetchCompanies() {
-	url := "https://api.exp.welcometothejungle.com/graphql"
-
-	httpClient := &http.Client{
-		Timeout: 20 * time.Second,
-		Transport: headerTransport{
-			base: http.DefaultTransport,
-			headers: map[string]string{
-				"User-Agent":   "Mozilla/5.0...",
-				"Content-Type": "application/json",
-			},
-		},
-	}
-
-	gqlClient := graphql.NewClient(url, httpClient)
-
+func (s Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	const (
 		limit    = 100
 		maxPages = 200
 	)
 
-	retryConfig := RetryConfig{
-		MaxAttempts: 4,
-		BaseDelay:   250 * time.Millisecond,
-		MaxDelay:    5 * time.Second,
-		JitterFrac:  0.2,
-	}
-	ctx := context.Background()
 	all := make([]Company, 0, 2000)
 	seen := make(map[string]struct{}) // dedupe key
 
 	for page := range maxPages {
 
 		var resp *khadgar.PersonalisedCompaniesResponse
-		err := doWithRetry(ctx, retryConfig, func(ctx context.Context) (statusCode int, err error) {
+		err := doWithRetry(ctx, s.RetryConfig, func(ctx context.Context) (statusCode int, err error) {
 			r, err := khadgar.PersonalisedCompanies(
 				ctx,
-				gqlClient,
+				s.GQClient,
 				nextOffset(page, limit),
 				limit,
 				"",
@@ -88,21 +81,18 @@ func FetchCompanies() {
 		})
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				log.Printf("scrape canceled: %v", err)
-				return
+				return all, fmt.Errorf("scrape canceled: %v", err)
 			}
-			log.Printf("fetch companies page=%d failed after retries: %v", page, err)
-			return
+			return all, fmt.Errorf("fetch companies page=%d failed after retries: %v", page, err)
 		}
 		if resp == nil {
-			log.Printf("fetch companies page=%d returned nil response", page)
-			return
+			return all, fmt.Errorf("fetch companies page=%d returned nil response", page)
 		}
 
 		cCount := len(resp.PersonalisedCompanies)
 		if cCount == 0 {
 			// No more data
-			return
+			return all, nil
 		}
 
 		mappedPage := toCompanies(resp.PersonalisedCompanies)
@@ -111,17 +101,9 @@ func FetchCompanies() {
 		// Last partial page => likely end.
 		// So 32 would be considered added and therefore it's time to break out and finish
 		if shouldStop(cCount, limit) {
-			break
+			return all, nil
 		}
 	}
 
-	// for _, comp := range resp.PersonalisedCompanies {
-	// 	fmt.Printf("--- \nName: %s\nSize: %s\nDescription: %s\n", comp.Name, comp.Size.Value, comp.ShortDescription)
-	// }
-}
-
-type Company struct {
-	Name             string
-	ShortDescription string
-	Size             string
+	return all, nil
 }

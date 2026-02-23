@@ -1,31 +1,41 @@
 package main
 
 import (
+	"context"
 	_ "embed"
-	"math/rand"
+	"log"
+	"log/slog"
+	"os"
 	"time"
 
+	"khadgar/internal/platform/database"
 	"khadgar/internal/scraper"
 )
 
 //go:generate go run github.com/Khan/genqlient ../../genqlient.yaml
 func main() {
-	// TODO:
-	// Pitstop 1: Print what you have
-	// Figure out how to deal with pagination and see if pages can be loaded concurrently
-	// If concurrency, then learn how to utilise
-	// Figure out way to display all: Bubbletea window? output to file?
+	retryConfig := scraper.RetryConfig{
+		MaxAttempts: 4,
+		BaseDelay:   250 * time.Millisecond,
+		MaxDelay:    5 * time.Second,
+		JitterFrac:  0.2,
+	}
 
-	// scrapeCompanyName()
-	pingGraphQLEndpoint()
-}
+	url := "https://api.exp.welcometothejungle.com/graphql"
+	client := scraper.NewClient(url)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-func pingGraphQLEndpoint() {
-	scraper.FetchCompanies()
-}
+	service := scraper.Service{
+		RetryConfig: retryConfig,
+		DB:          database.New(),
+		GQClient:    client,
+		Logger:      logger,
+	}
 
-func waitWithJitter() {
-	var base time.Duration = 300
-	jitter := time.Duration(rand.Intn(300)-150) * time.Millisecond
-	time.Sleep(base + jitter)
+	companies, err := service.FetchCompanies(context.Background())
+	if err != nil {
+		log.Print(err.Error())
+	}
+
+	log.Printf("%v", companies)
 }
