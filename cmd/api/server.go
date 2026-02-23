@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"khadgar/internal/server"
+	"khadgar/internal/api/server"
 )
 
 func (app *application) serve() error {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"khadgar/internal/database"
+	"khadgar/internal/platform/database"
 )
 
 // NOTES:
