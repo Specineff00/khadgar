@@ -63,12 +63,17 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) *
 //     generated requests/responses will work even if the full server schema is unknown.
 func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	const (
-		limit    = 100
+		limit    = 50
 		maxPages = 200
 	)
 
 	all := make([]Company, 0, 2000)
 	seen := make(map[string]struct{}) // dedupe key
+
+	s.Logger.Info("scrap started",
+		"limit", limit,
+		"max_pages", maxPages,
+	)
 
 	for page := range maxPages {
 
@@ -90,29 +95,58 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 		})
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				s.logFetchFailed(page, len(all), err)
 				return all, fmt.Errorf("scrape canceled: %v", err)
 			}
+			s.logFetchFailed(page, len(all), err)
 			return all, fmt.Errorf("fetch companies page=%d failed after retries: %v", page, err)
 		}
 		if resp == nil {
+			s.logFetchFailed(page, len(all), err)
 			return all, fmt.Errorf("fetch companies page=%d returned nil response", page)
 		}
 
 		cCount := len(resp.PersonalisedCompanies)
 		if cCount == 0 {
 			// No more data
+			s.logFetchComplete(page, len(all))
 			return all, nil
 		}
 
 		mappedPage := toCompanies(resp.PersonalisedCompanies)
 		all = mergeUnique(all, mappedPage, seen)
+		s.logPageFetch(page, len(all))
 
 		// Last partial page => likely end.
 		// So 32 would be considered added and therefore it's time to break out and finish
 		if shouldStop(cCount, limit) {
+			s.logFetchComplete(page, len(all))
 			return all, nil
 		}
 	}
 
+	s.logFetchComplete(999, len(all))
 	return all, nil
+}
+
+func (s *Service) logFetchComplete(page, fetched int) {
+	s.Logger.Info("scrape completed",
+		"page", page,
+		"fetched", fetched,
+	)
+}
+
+func (s *Service) logFetchFailed(page, fetched int, err error) {
+	s.Logger.Info("scrape failed",
+		"page", page,
+		"fetched", fetched,
+		"error", err.Error(),
+	)
+}
+
+func (s *Service) logPageFetch(page, fetched int) {
+	s.Logger.Info("current page fetch",
+		"page", page,
+		"fetched", fetched,
+	)
 }

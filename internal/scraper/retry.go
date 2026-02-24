@@ -86,11 +86,20 @@ func (s *Service) doWithRetry(ctx context.Context, fn func(context.Context) (sta
 		}
 		lastErr = err
 
-		if !isRetryable(err, statusCode) || attempt == s.RetryConfig.MaxAttempts-1 {
+		retryable := isRetryable(err, statusCode)
+		s.logFailedAttempt(attempt, statusCode, retryable, err)
+		if !retryable || attempt == s.RetryConfig.MaxAttempts-1 {
+			s.logRetrysExhausted(attempt, statusCode, err)
 			break
 		}
 
-		delay := nextBackoff(attempt, s.RetryConfig.BaseDelay, s.RetryConfig.MaxDelay, s.RetryConfig.JitterFrac)
+		delay := nextBackoff(
+			attempt,
+			s.RetryConfig.BaseDelay,
+			s.RetryConfig.MaxDelay,
+			s.RetryConfig.JitterFrac,
+		)
+		s.logBackoff(attempt, delay)
 
 		timer := time.NewTimer(delay)
 		select {
@@ -135,4 +144,29 @@ func statusCodeFromError(err error) int {
 	}
 
 	return 0
+}
+
+func (s *Service) logFailedAttempt(attemptNum, statusCode int, retryable bool, err error) {
+	s.Logger.Warn("attempt failed",
+		"attempt", attemptNum,
+		"max_attempts", s.RetryConfig.MaxAttempts,
+		"status_code", statusCode,
+		"retryable", retryable,
+		"err", err,
+	)
+}
+
+func (s *Service) logRetrysExhausted(attemptNum, statusCode int, err error) {
+	s.Logger.Error("retries exhausted",
+		"attempt", attemptNum,
+		"status_code", statusCode,
+		"err", err,
+	)
+}
+
+func (s *Service) logBackoff(attemptNum int, delay time.Duration) {
+	s.Logger.Info("retrying after backoff",
+		"attempt", attemptNum+1,
+		"delay_ms", delay.Milliseconds(),
+	)
 }
