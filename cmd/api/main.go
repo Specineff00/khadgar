@@ -19,7 +19,7 @@ import (
 
 type application struct {
 	port   int
-	db     database.Service
+	db     *database.Runtime
 	logger *slog.Logger
 	wg     sync.WaitGroup
 }
@@ -34,15 +34,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	dbRuntime, err := database.NewRuntimeFromEnv()
+	if err != nil {
+		logger.Error("database failed to init", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := dbRuntime.Close(); err != nil {
+			logger.Error("database failed to close")
+		}
+	}()
+
 	app := application{
 		port:   port,
-		db:     database.New(),
+		db:     dbRuntime,
 		logger: logger,
 	}
 
 	// Start the server
-	err = app.serve()
-	if err != nil {
+	if err = app.serve(); err != nil {
 		os.Exit(1)
 	}
 }
