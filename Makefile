@@ -3,15 +3,24 @@
 # Build the application
 all: build test
 
-build:
+build-api:
 	@echo "Building..."
 	
 	
 	@go build -o main cmd/api/main.go
 
 # Run the application
-run:
+run-api:
 	@go run cmd/api/main.go
+
+build-scraper:
+	@echo "Building"
+
+	@go build -o main cmd/scraper/main.go
+
+run-scraper:
+	@go run cmd/scraper/main.go
+	
 # Create DB container
 docker-run:
 	@if docker compose up --build 2>/dev/null; then \
