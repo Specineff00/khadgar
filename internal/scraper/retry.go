@@ -103,6 +103,7 @@ func (s *Service) doWithRetry(ctx context.Context, fn func(context.Context) (sta
 		// Only change delay if we can get the rety after from the response's header
 		if statusCode == 429 {
 			if meta, ok := ctx.Value(responseMetaKey{}).(ResponseMeta); ok && meta.RetryAfter != "" {
+				s.Logger.Info("something in retry", "meta", meta.RetryAfter)
 				if secs, err := strconv.Atoi(meta.RetryAfter); err == nil {
 					delay = time.Duration(secs)
 					s.logRetryAfter(delay)

@@ -10,7 +10,7 @@ import (
 )
 
 type Runtime struct {
-	db *pgxpool.Pool
+	pool *pgxpool.Pool
 }
 
 func NewRuntimeFromEnv() (*Runtime, error) {
@@ -25,12 +25,12 @@ func NewRuntimeFromEnv() (*Runtime, error) {
 		username, password, host, port, database,
 	)
 
-	db, err := pgxpool.New(context.Background(), connStr)
+	pool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		return nil, err
 	}
 
-	rt := &Runtime{db: db}
+	rt := &Runtime{pool: pool}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -41,14 +41,14 @@ func NewRuntimeFromEnv() (*Runtime, error) {
 	return rt, nil
 }
 
-func (r *Runtime) DB() *pgxpool.Pool {
-	return r.db
+func (r *Runtime) Pool() *pgxpool.Pool {
+	return r.pool
 }
 
 func (r *Runtime) Ping(ctx context.Context) error {
-	return r.db.Ping(ctx)
+	return r.pool.Ping(ctx)
 }
 
 func (r *Runtime) Close() {
-	r.db.Close()
+	r.pool.Close()
 }
