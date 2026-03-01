@@ -55,7 +55,7 @@ func main() {
 func scrapeToFile(service *scraper.Service) {
 	companies, err := service.FetchCompanies(context.Background())
 	if len(companies) == 0 && err != nil {
-		service.Logger.Error("scrape failed", "err", err, "count", len(companies))
+		service.Logger.Error("scrape failed with 0 copanies", "err", err)
 		os.Exit(1)
 	}
 

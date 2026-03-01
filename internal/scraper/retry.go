@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -99,6 +100,16 @@ func (s *Service) doWithRetry(ctx context.Context, fn func(context.Context) (sta
 			s.RetryConfig.MaxDelay,
 			s.RetryConfig.JitterFrac,
 		)
+		// Only change delay if we can get the rety after from the response's header
+		if statusCode == 429 {
+			if meta, ok := ctx.Value(responseMetaKey{}).(ResponseMeta); ok && meta.RetryAfter != "" {
+				if secs, err := strconv.Atoi(meta.RetryAfter); err == nil {
+					delay = time.Duration(secs)
+					s.logRetryAfter(delay)
+				}
+			}
+		}
+
 		s.logBackoff(attempt, delay)
 
 		timer := time.NewTimer(delay)
@@ -167,6 +178,12 @@ func (s *Service) logRetrysExhausted(attemptNum, statusCode int, err error) {
 func (s *Service) logBackoff(attemptNum int, delay time.Duration) {
 	s.Logger.Info("retrying after backoff",
 		"attempt", attemptNum+1,
+		"delay_ms", delay.Milliseconds(),
+	)
+}
+
+func (s *Service) logRetryAfter(delay time.Duration) {
+	s.Logger.Info("retrying after delay from header",
 		"delay_ms", delay.Milliseconds(),
 	)
 }

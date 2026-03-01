@@ -73,6 +73,7 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 
 	all := make([]Company, 0, 2000)
 	seen := make(map[string]struct{}) // dedupe key
+	ctx = attachResponseMetaKey(ctx)
 
 	s.Logger.Info("scrap started",
 		"limit", limit,
@@ -153,4 +154,9 @@ func (s *Service) logPageFetch(page, fetched int) {
 		"page", page,
 		"fetched", fetched,
 	)
+}
+
+func attachResponseMetaKey(ctx context.Context) context.Context {
+	meta := ResponseMeta{}
+	return context.WithValue(ctx, responseMetaKey{}, meta)
 }

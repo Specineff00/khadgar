@@ -1,6 +1,9 @@
 package scraper
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 type headerTransport struct {
 	base    http.RoundTripper
@@ -17,5 +20,21 @@ func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	return base.RoundTrip(clone)
+	resp, err := base.RoundTrip(clone)
+	if err != nil {
+		return nil, err
+	}
+
+	// If the meta key exists then try get the value
+	if meta, ok := clone.Context().Value(responseMetaKey{}).(*ResponseMeta); ok {
+		meta.RetryAfter = resp.Header.Get("Retry-After")
+		fmt.Printf("retry after header: %s", meta.RetryAfter)
+	}
+	return resp, nil
+}
+
+type responseMetaKey struct{}
+
+type ResponseMeta struct {
+	RetryAfter string
 }
