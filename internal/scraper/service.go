@@ -16,7 +16,7 @@ import (
 
 type Service struct {
 	RetryConfig RetryConfig
-	DB          database.Service
+	DB          *database.Runtime
 	GQClient    graphql.Client
 	Logger      *slog.Logger
 }
@@ -27,13 +27,17 @@ type Company struct {
 	Size             string
 }
 
-func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) *Service {
+func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (*Service, error) {
+	db, err := database.NewRuntimeFromEnv()
+	if err != nil {
+		return nil, err
+	}
 	return &Service{
 		RetryConfig: retry,
-		DB:          database.New(),
+		DB:          db,
 		GQClient:    client,
 		Logger:      logger.With("component", "scraper"),
-	}
+	}, nil
 }
 
 // FetchCompanies demonstrates the genqlient flow for this scraper.

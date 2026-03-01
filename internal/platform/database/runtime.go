@@ -2,14 +2,15 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Runtime struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 func NewRuntimeFromEnv() (*Runtime, error) {
@@ -23,7 +24,8 @@ func NewRuntimeFromEnv() (*Runtime, error) {
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		username, password, host, port, database,
 	)
-	db, err := sql.Open("pgx", connStr)
+
+	db, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		return nil, err
 	}
@@ -33,20 +35,20 @@ func NewRuntimeFromEnv() (*Runtime, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := rt.Ping(ctx); err != nil {
-		_ = db.Close()
+		rt.Close()
 		return nil, err
 	}
 	return rt, nil
 }
 
-func (r *Runtime) DB() *sql.DB {
+func (r *Runtime) DB() *pgxpool.Pool {
 	return r.db
 }
 
 func (r *Runtime) Ping(ctx context.Context) error {
-	return r.db.PingContext(ctx)
+	return r.db.Ping(ctx)
 }
 
-func (r *Runtime) Close() error {
-	return r.db.Close()
+func (r *Runtime) Close() {
+	r.db.Close()
 }

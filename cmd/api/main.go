@@ -40,9 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		if err := dbRuntime.Close(); err != nil {
-			logger.Error("database failed to close")
-		}
+		dbRuntime.Close()
 	}()
 
 	app := application{
