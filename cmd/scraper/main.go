@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	"khadgar/db/sqlc"
@@ -34,13 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("1. Scrape to file")
-	fmt.Println("2. Scrape to DB")
-	fmt.Println("3. File to DB")
-	fmt.Print("Choice (1, 2 or 3): ")
-
-	var choice int
-	fmt.Scanln(&choice)
+	choice := getChoice(service.Logger)
 
 	switch choice {
 	case 1:
@@ -150,4 +145,33 @@ func insertCompaniesBatched(service *scraper.Service, companies []scraper.Compan
 	}
 	elapsed := time.Since(start)
 	service.Logger.Info("insert companies complete", "duration", elapsed, "duration_sec", elapsed.Seconds())
+}
+
+func getChoice(logger *slog.Logger) int {
+	// 1) CLI argument support (for debugger / automation)
+	if len(os.Args) > 1 {
+		choice, err := strconv.Atoi(os.Args[1])
+		if err != nil || choice < 1 || choice > 3 {
+			logger.Error("invalid CLI choice; use 1, 2, or 3", "arg", os.Args[1], "err", err)
+			os.Exit(1)
+		}
+		return choice
+	}
+
+	// 2) Interactive fallback (normal local runs)
+	fmt.Println("1. Scrape to file")
+	fmt.Println("2. Scrape to DB")
+	fmt.Println("3. File to DB")
+	fmt.Print("Choice (1, 2 or 3): ")
+
+	var choice int
+	if _, err := fmt.Scanln(&choice); err != nil {
+		logger.Error("failed to read choice from stdin", "err", err)
+		os.Exit(1)
+	}
+	if choice < 1 || choice > 3 {
+		logger.Error("not a valid choice", "choice", choice)
+		os.Exit(1)
+	}
+	return choice
 }
