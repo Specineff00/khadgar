@@ -26,7 +26,7 @@ func main() {
 	}
 
 	url := "https://api.exp.welcometothejungle.com/graphql"
-	client := scraper.NewClient(url)
+	client := scraper.NewGraphQLClient(url)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	service, err := scraper.NewService(retryConfig, client, logger)
@@ -44,6 +44,8 @@ func main() {
 		scrapeToDB(service)
 	case 3:
 		insertCompaniesFromFileToDB(service)
+	case 4:
+		testGreenhouseScrape(service)
 	default:
 		logger.Error("Not a valid choice!")
 		os.Exit(1)
@@ -151,27 +153,66 @@ func getChoice(logger *slog.Logger) int {
 	// 1) CLI argument support (for debugger / automation)
 	if len(os.Args) > 1 {
 		choice, err := strconv.Atoi(os.Args[1])
-		if err != nil || choice < 1 || choice > 3 {
-			logger.Error("invalid CLI choice; use 1, 2, or 3", "arg", os.Args[1], "err", err)
+		if err != nil || !choiceRangeCondition(choice) {
+			logger.Error("invalid CLI choice; use 1 - 4", "arg", os.Args[1], "err", err)
 			os.Exit(1)
 		}
 		return choice
 	}
 
 	// 2) Interactive fallback (normal local runs)
-	fmt.Println("1. Scrape to file")
-	fmt.Println("2. Scrape to DB")
-	fmt.Println("3. File to DB")
-	fmt.Print("Choice (1, 2 or 3): ")
+	fmt.Println("1. Scrape companies from WTTJ to file")
+	fmt.Println("2. Scrape companies from WTTJ to DB")
+	fmt.Println("3. Insert companies from file to DB")
+	fmt.Println("4. Test workable scrape on starling bank")
+	fmt.Print("Choice (1 - 4): ")
 
 	var choice int
 	if _, err := fmt.Scanln(&choice); err != nil {
 		logger.Error("failed to read choice from stdin", "err", err)
 		os.Exit(1)
 	}
-	if choice < 1 || choice > 3 {
+	if !choiceRangeCondition(choice) {
 		logger.Error("not a valid choice", "choice", choice)
 		os.Exit(1)
 	}
 	return choice
+}
+
+func choiceRangeCondition(choice int) bool {
+	return choice >= 1 || choice <= 4
+}
+
+func testWorkableScrape(service *scraper.Service) {
+	httpClient := scraper.NewRESTClient()
+	jobs, err := scraper.FetchWorkableJobs(
+		context.Background(),
+		httpClient,
+		"starling-bank",
+		"ios",
+	)
+	if err != nil {
+		service.Logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	service.Logger.Info("fetch succeeded: %v", "jobs", jobs.Jobs)
+	os.Exit(0)
+}
+
+func testGreenhouseScrape(service *scraper.Service) {
+	httpClient := scraper.NewRESTClient()
+	jobs, err := scraper.FetchGreenhouseJobs(
+		context.Background(),
+		httpClient,
+		"monzo",
+		"ios",
+	)
+	if err != nil {
+		service.Logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	service.Logger.Info("fetch succeeded: %w", "jobs", jobs.Jobs)
+	os.Exit(0)
 }

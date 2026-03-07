@@ -3,6 +3,7 @@ package scraper
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"net/url"
@@ -187,4 +188,8 @@ func (s *Service) logRetryAfter(delay time.Duration) {
 	s.Logger.Info("retrying after delay from header",
 		"delay_ms", delay.Milliseconds(),
 	)
+}
+
+func siteCompanyRetryError(site, company string) error {
+	return fmt.Errorf("%s %s: %w", site, company, ErrShouldRetry)
 }
