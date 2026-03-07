@@ -15,4 +15,8 @@ type Company struct {
 	Size             string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	WorkingUrl       pgtype.Text
+	SiteName         pgtype.Text
+	LastCheckedAt    pgtype.Timestamptz
+	Attempts         int32
 }

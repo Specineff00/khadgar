@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const insertCompany = `-- name: InsertCompany :exec
@@ -27,5 +29,27 @@ type InsertCompanyParams struct {
 
 func (q *Queries) InsertCompany(ctx context.Context, arg InsertCompanyParams) error {
 	_, err := q.db.Exec(ctx, insertCompany, arg.Name, arg.ShortDescription, arg.Size)
+	return err
+}
+
+const updateCompanyJobSite = `-- name: UpdateCompanyJobSite :exec
+UPDATE companies
+SET 
+  working_url = $1,
+  site_name = $2,
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW()
+WHERE name = $3
+`
+
+type UpdateCompanyJobSiteParams struct {
+	WorkingUrl pgtype.Text
+	SiteName   pgtype.Text
+	Name       string
+}
+
+func (q *Queries) UpdateCompanyJobSite(ctx context.Context, arg UpdateCompanyJobSiteParams) error {
+	_, err := q.db.Exec(ctx, updateCompanyJobSite, arg.WorkingUrl, arg.SiteName, arg.Name)
 	return err
 }

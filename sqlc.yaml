@@ -3,6 +3,7 @@ sql:
   - engine: "postgresql"
     schema:
       - "db/migrations/000001_create_companies_table.up.sql"
+      - "db/migrations/000002_add_job_site_columns.up.sql"
     queries: "db/queries"
     gen:
       go:
