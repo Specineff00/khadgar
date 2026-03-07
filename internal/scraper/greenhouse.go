@@ -65,11 +65,3 @@ func FetchGreenhouseJobs(
 
 	return gc, nil
 }
-
-func fetchTeamTailor(name string) string {
-	return fmt.Sprintf("https://%s.teamtailor.com/jobs", name)
-}
-
-func lever(name string) string {
-	return fmt.Sprintf("https://jobs.lever.co/%s", name)
-}

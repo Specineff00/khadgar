@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"time"
 
+	"khadgar/db/sqlc"
 	"khadgar/internal/platform/database"
 
 	"khadgar"
@@ -132,6 +135,49 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 
 	s.logFetchComplete(999, len(all))
 	return all, nil
+}
+
+func (s *Service) InsertCompaniesBatched(companies []Company) {
+	start := time.Now()
+	const batchSize = 500
+	ctx := context.Background()
+	pool := s.DB.Pool()
+
+	for i := 0; i < len(companies); i += batchSize {
+
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			s.Logger.Error("failed to start transaction", "err", err)
+			os.Exit(1)
+		}
+
+		func() {
+			defer tx.Rollback(ctx)
+
+			queries := sqlc.New(pool).WithTx(tx)
+			batch := companies[i:min(i+batchSize, len(companies))]
+
+			for _, c := range batch {
+				arg := sqlc.InsertCompanyParams{
+					Name:             c.Name,
+					ShortDescription: c.ShortDescription,
+					Size:             c.Size,
+				}
+
+				err := queries.InsertCompany(ctx, arg)
+				if err != nil {
+					s.Logger.Error("insert failed")
+					return
+				}
+			}
+
+			if err := tx.Commit(ctx); err != nil {
+				s.Logger.Error("failed to commit", "err", err)
+			}
+		}()
+	}
+	elapsed := time.Since(start)
+	s.Logger.Info("insert companies complete", "duration", elapsed, "duration_sec", elapsed.Seconds())
 }
 
 func (s *Service) logFetchComplete(page, fetched int) {

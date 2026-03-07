@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"khadgar/db/sqlc"
 	"khadgar/internal/scraper"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -45,14 +44,14 @@ func main() {
 	case 3:
 		insertCompaniesFromFileToDB(service)
 	case 4:
-		testGreenhouseScrape(service)
+		testTeamTailor(service)
 	default:
 		logger.Error("Not a valid choice!")
 		os.Exit(1)
 	}
 }
 
-func scrape(service *scraper.Service) []scraper.Company {
+func scrapeForCompanies(service *scraper.Service) []scraper.Company {
 	companies, err := service.FetchCompanies(context.Background())
 	if len(companies) == 0 && err != nil {
 		service.Logger.Error("scrape failed with 0 copanies", "err", err)
@@ -62,7 +61,7 @@ func scrape(service *scraper.Service) []scraper.Company {
 }
 
 func scrapeToFile(service *scraper.Service) {
-	companies := scrape(service)
+	companies := scrapeForCompanies(service)
 
 	service.Logger.Info("encoding")
 	data, err := json.MarshalIndent(companies, "", "  ")
@@ -84,9 +83,9 @@ func scrapeToFile(service *scraper.Service) {
 }
 
 func scrapeToDB(service *scraper.Service) {
-	companies := scrape(service)
+	companies := scrapeForCompanies(service)
 
-	insertCompaniesBatched(service, companies)
+	service.InsertCompaniesBatched(companies)
 }
 
 func insertCompaniesFromFileToDB(service *scraper.Service) {
@@ -103,50 +102,7 @@ func insertCompaniesFromFileToDB(service *scraper.Service) {
 		os.Exit(1)
 	}
 
-	insertCompaniesBatched(service, companies)
-}
-
-func insertCompaniesBatched(service *scraper.Service, companies []scraper.Company) {
-	start := time.Now()
-	const batchSize = 500
-	ctx := context.Background()
-	pool := service.DB.Pool()
-
-	for i := 0; i < len(companies); i += batchSize {
-
-		tx, err := pool.Begin(ctx)
-		if err != nil {
-			service.Logger.Error("failed to start transaction", "err", err)
-			os.Exit(1)
-		}
-
-		func() {
-			defer tx.Rollback(ctx)
-
-			queries := sqlc.New(pool).WithTx(tx)
-			batch := companies[i:min(i+batchSize, len(companies))]
-
-			for _, c := range batch {
-				arg := sqlc.InsertCompanyParams{
-					Name:             c.Name,
-					ShortDescription: c.ShortDescription,
-					Size:             c.Size,
-				}
-
-				err := queries.InsertCompany(ctx, arg)
-				if err != nil {
-					service.Logger.Error("insert failed")
-					return
-				}
-			}
-
-			if err := tx.Commit(ctx); err != nil {
-				service.Logger.Error("failed to commit", "err", err)
-			}
-		}()
-	}
-	elapsed := time.Since(start)
-	service.Logger.Info("insert companies complete", "duration", elapsed, "duration_sec", elapsed.Seconds())
+	service.InsertCompaniesBatched(companies)
 }
 
 func getChoice(logger *slog.Logger) int {
@@ -207,6 +163,40 @@ func testGreenhouseScrape(service *scraper.Service) {
 		httpClient,
 		"monzo",
 		"ios",
+	)
+	if err != nil {
+		service.Logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	service.Logger.Info("fetch succeeded: %w", "jobs", jobs.Jobs)
+	os.Exit(0)
+}
+
+func testLeverScrape(service *scraper.Service) {
+	httpClient := scraper.NewRESTClient()
+	jobs, err := scraper.FetchLeverJobs(
+		context.Background(),
+		httpClient,
+		"moonpig",
+		"engineer",
+	)
+	if err != nil {
+		service.Logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	service.Logger.Info("fetch succeeded: %w", "jobs", jobs.Jobs)
+	os.Exit(0)
+}
+
+func testTeamTailor(service *scraper.Service) {
+	httpClient := scraper.NewRESTClient()
+	jobs, err := scraper.FetchTeamTailorJobs(
+		context.Background(),
+		httpClient,
+		"chip",
+		"developer",
 	)
 	if err != nil {
 		service.Logger.Error(err.Error())
