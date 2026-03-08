@@ -73,7 +73,7 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (
 func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	const (
 		limit    = 50
-		maxPages = 200
+		maxPages = 500
 	)
 
 	all := make([]Company, 0, 2000)
@@ -147,7 +147,8 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	}
 
 	// Unlikely scenario but covered to return all
-	s.logFetchComplete(999, len(all))
+	s.logFetchComplete(maxPages, len(all))
+	s.saveScrapePosition(maxPages, false)
 	return all, nil
 }
 
@@ -262,7 +263,7 @@ func (s *Service) getScrapeStartPage(ctx context.Context) int {
 		return 0
 	}
 	if row.Completed {
-		s.Logger.Info("scrape previoulsy completed. restarting")
+		s.Logger.Info("scrape previously completed. restarting")
 		return 0
 	}
 	return int(row.NextPage)

@@ -12,29 +12,29 @@ import (
 )
 
 const insertCompany = `-- name: InsertCompany :exec
-INSERT INTO companies(name, short_description, size, url_safe_name)
+INSERT INTO companies(name, url_safe_name, short_description, size)
 VALUES (
   $1,
-  $2,
+  regexp_replace($2, '-[0-9]+$', ''), -- Removes dash and number suffix
   $3,
-  regexp_replace($4, '-[0-9]+$', '')
+  $4
 )
 ON CONFLICT (name) DO NOTHING
 `
 
 type InsertCompanyParams struct {
 	Name             string
+	UrlSafeName      string
 	ShortDescription string
 	Size             string
-	UrlSafeName      string
 }
 
 func (q *Queries) InsertCompany(ctx context.Context, arg InsertCompanyParams) error {
 	_, err := q.db.Exec(ctx, insertCompany,
 		arg.Name,
+		arg.UrlSafeName,
 		arg.ShortDescription,
 		arg.Size,
-		arg.UrlSafeName,
 	)
 	return err
 }

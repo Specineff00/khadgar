@@ -14,6 +14,7 @@ type TeamTailorCompany struct {
 }
 
 type TeamTailorJob struct {
+	ID       string
 	Title    string
 	URL      string
 	Location string
@@ -91,7 +92,6 @@ func FetchTeamTailorJobs(
 	// "#jobs_list_container li" → find all <li> inside the <ul> with that ID.
 	// Each <li> is one job card.
 	doc.Find("#jobs_list_container li").Each(func(i int, li *goquery.Selection) {
-
 		// Each <li> has a single <a> wrapping the entire card.
 		// The href contains the full job URL including the job ID.
 		link := li.Find("a")
@@ -119,6 +119,7 @@ func FetchTeamTailorJobs(
 		location := strings.TrimSpace(metaDiv.Find("span:not([class])").Eq(1).Text())
 
 		result.Jobs = append(result.Jobs, TeamTailorJob{
+			ID:       href,
 			Title:    title,
 			URL:      href,
 			Location: location,

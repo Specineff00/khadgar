@@ -22,6 +22,18 @@ type Company struct {
 	Attempts         int32
 }
 
+type Job struct {
+	ID          int64
+	CompanyID   int64
+	ExternalID  string
+	Title       string
+	Url         string
+	Location    string
+	Active      bool
+	FirstSeenAt pgtype.Timestamptz
+	LastSeenAt  pgtype.Timestamptz
+}
+
 type WttjScrapeMetaDatum struct {
 	ID        int32
 	NextPage  int32

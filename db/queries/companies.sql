@@ -2,7 +2,7 @@
 INSERT INTO companies(name, url_safe_name, short_description, size)
 VALUES (
   sqlc.arg('name'),
-  regexp_replace(sqlc.arg('url_safe_name'), '-[0-9]+$', ''),
+  regexp_replace(sqlc.arg('url_safe_name'), '-[0-9]+$', ''), -- Removes dash and number suffix
   sqlc.arg('short_description'),
   sqlc.arg('size')
 )
