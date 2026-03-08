@@ -11,6 +11,7 @@ import (
 type Company struct {
 	ID               int64
 	Name             string
+	UrlSafeName      string
 	ShortDescription string
 	Size             string
 	CreatedAt        pgtype.Timestamptz
@@ -19,7 +20,6 @@ type Company struct {
 	SiteName         pgtype.Text
 	LastCheckedAt    pgtype.Timestamptz
 	Attempts         int32
-	UrlSafeName      pgtype.Text
 }
 
 type WttjScrapeMetaDatum struct {

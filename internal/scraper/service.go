@@ -29,6 +29,7 @@ type Company struct {
 	Name             string
 	ShortDescription string
 	Size             string
+	URLSafeName      string
 }
 
 func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (*Service, error) {
@@ -165,7 +166,7 @@ func (s *Service) saveScrapePosition(page int, completed bool) {
 
 		queries := sqlc.New(pool).WithTx(tx)
 		arg := sqlc.UpsertWTTJScrapeMetaDataParams{
-			NextPage:  int32(page + 1),
+			NextPage:  int32(page),
 			Completed: completed,
 		}
 		if err := queries.UpsertWTTJScrapeMetaData(ctx, arg); err != nil {
@@ -204,6 +205,7 @@ func (s *Service) InsertCompaniesBatched(companies []Company) {
 					Name:             c.Name,
 					ShortDescription: c.ShortDescription,
 					Size:             c.Size,
+					UrlSafeName:      c.URLSafeName,
 				}
 
 				err := queries.InsertCompany(ctx, arg)

@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS companies (
   id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
+  url_safe_name TEXT NOT NULL,
   short_description TEXT NOT NULL DEFAULT '',
   size TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

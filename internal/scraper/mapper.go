@@ -11,6 +11,7 @@ func toCompany(in khadgar.PersonalisedCompaniesPersonalisedCompaniesCompany) Com
 		Name:             strings.TrimSpace(in.Name),
 		ShortDescription: strings.TrimSpace(in.ShortDescription),
 		Size:             strings.TrimSpace(in.Size.Value),
+		URLSafeName:      strings.TrimSpace(in.UrlSafeName),
 	}
 }
 

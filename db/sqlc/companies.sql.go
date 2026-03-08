@@ -17,7 +17,7 @@ VALUES (
   $1,
   $2,
   $3,
-  $4
+  regexp_replace($4, '-[0-9]+$', '')
 )
 ON CONFLICT (name) DO NOTHING
 `
@@ -26,7 +26,7 @@ type InsertCompanyParams struct {
 	Name             string
 	ShortDescription string
 	Size             string
-	UrlSafeName      pgtype.Text
+	UrlSafeName      string
 }
 
 func (q *Queries) InsertCompany(ctx context.Context, arg InsertCompanyParams) error {

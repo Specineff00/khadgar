@@ -1,10 +1,10 @@
 -- name: InsertCompany :exec
-INSERT INTO companies(name, short_description, size, url_safe_name)
+INSERT INTO companies(name, url_safe_name, short_description, size)
 VALUES (
   sqlc.arg('name'),
+  regexp_replace(sqlc.arg('url_safe_name'), '-[0-9]+$', ''),
   sqlc.arg('short_description'),
-  sqlc.arg('size'),
-  sqlc.arg('url_safe_name')
+  sqlc.arg('size')
 )
 ON CONFLICT (name) DO NOTHING;
 
