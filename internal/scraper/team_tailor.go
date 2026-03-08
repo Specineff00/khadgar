@@ -129,3 +129,19 @@ func FetchTeamTailorJobs(
 
 	return result, nil
 }
+
+func (t TeamTailorCompany) mapToJobRows() []JobRow {
+	jobRows := make([]JobRow, 0, len(t.Jobs))
+
+	for _, job := range t.Jobs {
+		jobRow := JobRow{
+			id:       job.ID,
+			title:    job.Title,
+			url:      job.URL,
+			location: job.Location,
+		}
+
+		jobRows = append(jobRows, jobRow)
+	}
+	return jobRows
+}

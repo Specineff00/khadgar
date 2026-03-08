@@ -119,6 +119,21 @@ func FetchWorkableJobs(
 	return result, nil
 }
 
-func workableJobLink(company, id string) string {
-	return fmt.Sprintf("https://apply.workable.com/%s/jobs/%s", company, id)
+func workableJobLink(company string, id int) string {
+	return fmt.Sprintf("https://apply.workable.com/%s/jobs/%d", company, id)
+}
+
+func (w WorkableCompany) mapToJobRows(company string) []JobRow {
+	jobRows := make([]JobRow, 0, len(w.Jobs))
+
+	for _, job := range w.Jobs {
+		jobRow := JobRow{
+			id:       fmt.Sprintf("%d", job.ID),
+			title:    job.Title,
+			url:      workableJobLink(company, job.ID),
+			location: job.Location.City,
+		}
+		jobRows = append(jobRows, jobRow)
+	}
+	return jobRows
 }

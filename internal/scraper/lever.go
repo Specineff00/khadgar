@@ -71,3 +71,19 @@ func FetchLeverJobs(
 
 	return &LeverCompany{Jobs: filtered}, nil
 }
+
+func (l LeverCompany) mapToJobRows() []JobRow {
+	jobRows := make([]JobRow, 0, len(l.Jobs))
+
+	for _, job := range l.Jobs {
+		jobRow := JobRow{
+			id:       job.ID,
+			title:    job.Title,
+			url:      job.HostedURL,
+			location: job.Categories.Location,
+		}
+
+		jobRows = append(jobRows, jobRow)
+	}
+	return jobRows
+}

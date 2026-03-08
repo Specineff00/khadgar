@@ -1,4 +1,4 @@
--- name: InsertJob :exec
+-- name: UpsertJob :exec
 INSERT INTO jobs (company_id, external_id, search_term, title, url, location, active, last_seen_at)
 VALUES(
   sqlc.arg('company_id'),
@@ -22,4 +22,5 @@ ON CONFLICT (company_id, external_id) DO UPDATE SET
 UPDATE jobs
 SET active = FALSE
 WHERE company_id = sqlc.arg('company_id')
-  AND last_seen_at < sqlc.arg('scrape_started_at');
+  AND last_seen_at <
+  sqlc.arg('scrape_started_at');

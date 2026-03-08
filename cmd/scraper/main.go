@@ -44,7 +44,13 @@ func main() {
 	case 3:
 		insertCompaniesFromFileToDB(service)
 	case 4:
+		testWorkableScrape(service)
+	case 5:
+		testGreenhouseScrape(service)
+	case 6:
 		testTeamTailor(service)
+	case 7:
+		testLeverScrape(service)
 	default:
 		logger.Error("Not a valid choice!")
 		os.Exit(1)
@@ -110,7 +116,7 @@ func getChoice(logger *slog.Logger) int {
 	if len(os.Args) > 1 {
 		choice, err := strconv.Atoi(os.Args[1])
 		if err != nil || !choiceRangeCondition(choice) {
-			logger.Error("invalid CLI choice; use 1 - 4", "arg", os.Args[1], "err", err)
+			logger.Error("invalid CLI choice; use 1 - 7", "arg", os.Args[1], "err", err)
 			os.Exit(1)
 		}
 		return choice
@@ -121,7 +127,10 @@ func getChoice(logger *slog.Logger) int {
 	fmt.Println("2. Scrape companies from WTTJ to DB")
 	fmt.Println("3. Insert companies from file to DB")
 	fmt.Println("4. Test workable scrape on starling bank")
-	fmt.Print("Choice (1 - 4): ")
+	fmt.Println("5. Test greenhouse scrape on monzo")
+	fmt.Println("6. Test team tailor scrape on chip")
+	fmt.Println("7. Test lever scrape on moonpig")
+	fmt.Print("Choice (1 - 7): ")
 
 	var choice int
 	if _, err := fmt.Scanln(&choice); err != nil {
@@ -136,7 +145,7 @@ func getChoice(logger *slog.Logger) int {
 }
 
 func choiceRangeCondition(choice int) bool {
-	return choice >= 1 || choice <= 4
+	return choice >= 1 || choice <= 7
 }
 
 func testWorkableScrape(service *scraper.Service) {

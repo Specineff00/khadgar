@@ -65,3 +65,18 @@ func FetchGreenhouseJobs(
 
 	return gc, nil
 }
+
+func (g GreenhouseCompany) mapToJobRows() []JobRow {
+	jobRows := make([]JobRow, 0, len(g.Jobs))
+
+	for _, job := range g.Jobs {
+		jobRow := JobRow{
+			id:       fmt.Sprintf("%d", job.ID),
+			title:    job.Title,
+			url:      job.AbsoluteURL,
+			location: job.Location.Name,
+		}
+		jobRows = append(jobRows, jobRow)
+	}
+	return jobRows
+}

@@ -32,6 +32,13 @@ type Company struct {
 	URLSafeName      string
 }
 
+type JobRow struct {
+	id       string
+	title    string
+	url      string
+	location string
+}
+
 func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (*Service, error) {
 	db, err := database.NewRuntimeFromEnv()
 	if err != nil {
@@ -267,4 +274,46 @@ func (s *Service) getScrapeStartPage(ctx context.Context) int {
 		return 0
 	}
 	return int(row.NextPage)
+}
+
+func (s *Service) upsertJobs(
+	ctx context.Context,
+	jobs []JobRow,
+	companyID int,
+	search string,
+) {
+	pool := s.DB.Pool()
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		s.logDBTransactionStartError(err)
+		return
+	}
+
+	func() {
+		defer tx.Rollback(ctx)
+
+		queries := sqlc.New(pool).WithTx(tx)
+
+		for _, job := range jobs {
+
+			arg := sqlc.UpsertJobParams{
+				CompanyID:  int64(companyID),
+				ExternalID: job.id,
+				SearchTerm: search,
+				Title:      job.title,
+				Url:        job.url,
+				Location:   job.location,
+			}
+
+			if err := queries.UpsertJob(ctx, arg); err != nil {
+				s.logDBUpsertError(err)
+				return
+			}
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			s.logDBCommitError(err)
+		}
+	}()
 }
