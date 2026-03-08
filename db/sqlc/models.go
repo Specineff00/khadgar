@@ -20,3 +20,11 @@ type Company struct {
 	LastCheckedAt    pgtype.Timestamptz
 	Attempts         int32
 }
+
+type WttjScrapeMetaDatum struct {
+	ID        int32
+	NextPage  int32
+	Completed bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}

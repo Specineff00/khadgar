@@ -78,7 +78,7 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	seen := make(map[string]struct{}) // dedupe key
 	ctx = attachResponseMetaKey(ctx)
 
-	s.Logger.Info("scrap started",
+	s.Logger.Info("scrape started",
 		"limit", limit,
 		"max_pages", maxPages,
 	)
@@ -205,4 +205,7 @@ func (s *Service) logPageFetch(page, fetched int) {
 func attachResponseMetaKey(ctx context.Context) context.Context {
 	meta := ResponseMeta{}
 	return context.WithValue(ctx, responseMetaKey{}, meta)
+}
+
+func saveScrapePosition() error {
 }
