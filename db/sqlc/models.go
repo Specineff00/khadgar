@@ -26,6 +26,7 @@ type Job struct {
 	ID          int64
 	CompanyID   int64
 	ExternalID  string
+	SearchTerm  string
 	Title       string
 	Url         string
 	Location    string

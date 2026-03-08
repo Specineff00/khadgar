@@ -1,8 +1,9 @@
 -- name: InsertJob :exec
-INSERT INTO jobs (company_id, external_id, title, url, location, active, last_seen_at)
+INSERT INTO jobs (company_id, external_id, search_term, title, url, location, active, last_seen_at)
 VALUES(
   sqlc.arg('company_id'),
   sqlc.arg('external_id'),
+  sqlc.arg('search_term'),
   sqlc.arg('title'),
   sqlc.arg('url'),
   sqlc.arg('location'),
@@ -10,6 +11,7 @@ VALUES(
   NOW()
 )
 ON CONFLICT (company_id, external_id) DO UPDATE SET
+  search_term = EXCLUDED.search_term,
   title = EXCLUDED.title,
   url = EXCLUDED.url,
   location = EXCLUDED.location,

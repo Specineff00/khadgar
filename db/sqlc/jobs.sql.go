@@ -29,17 +29,19 @@ func (q *Queries) DeactivateStaleJobs(ctx context.Context, arg DeactivateStaleJo
 }
 
 const insertJob = `-- name: InsertJob :exec
-INSERT INTO jobs (company_id, external_id, title, url, location, active, last_seen_at)
+INSERT INTO jobs (company_id, external_id, search_term, title, url, location, active, last_seen_at)
 VALUES(
   $1,
   $2,
   $3,
   $4,
   $5,
+  $6,
   TRUE,
   NOW()
 )
 ON CONFLICT (company_id, external_id) DO UPDATE SET
+  search_term = EXCLUDED.search_term,
   title = EXCLUDED.title,
   url = EXCLUDED.url,
   location = EXCLUDED.location,
@@ -50,6 +52,7 @@ ON CONFLICT (company_id, external_id) DO UPDATE SET
 type InsertJobParams struct {
 	CompanyID  int64
 	ExternalID string
+	SearchTerm string
 	Title      string
 	Url        string
 	Location   string
@@ -59,6 +62,7 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) error {
 	_, err := q.db.Exec(ctx, insertJob,
 		arg.CompanyID,
 		arg.ExternalID,
+		arg.SearchTerm,
 		arg.Title,
 		arg.Url,
 		arg.Location,
