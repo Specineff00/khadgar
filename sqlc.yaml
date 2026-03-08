@@ -5,6 +5,7 @@ sql:
       - "db/migrations/000001_create_companies_table.up.sql"
       - "db/migrations/000002_add_job_site_columns.up.sql"
       - "db/migrations/000003_create_wttj_scrape_meta_data_table.up.sql"
+      - "db/migrations/000004_add_url_safe_name_column.up.sql"
     queries: "db/queries"
     gen:
       go:

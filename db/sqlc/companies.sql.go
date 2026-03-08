@@ -12,11 +12,12 @@ import (
 )
 
 const insertCompany = `-- name: InsertCompany :exec
-INSERT INTO companies(name, short_description, size)
+INSERT INTO companies(name, short_description, size, url_safe_name)
 VALUES (
   $1,
   $2,
-  $3
+  $3,
+  $4
 )
 ON CONFLICT (name) DO NOTHING
 `
@@ -25,10 +26,16 @@ type InsertCompanyParams struct {
 	Name             string
 	ShortDescription string
 	Size             string
+	UrlSafeName      pgtype.Text
 }
 
 func (q *Queries) InsertCompany(ctx context.Context, arg InsertCompanyParams) error {
-	_, err := q.db.Exec(ctx, insertCompany, arg.Name, arg.ShortDescription, arg.Size)
+	_, err := q.db.Exec(ctx, insertCompany,
+		arg.Name,
+		arg.ShortDescription,
+		arg.Size,
+		arg.UrlSafeName,
+	)
 	return err
 }
 

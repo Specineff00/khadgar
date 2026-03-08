@@ -19,6 +19,7 @@ type Company struct {
 	SiteName         pgtype.Text
 	LastCheckedAt    pgtype.Timestamptz
 	Attempts         int32
+	UrlSafeName      pgtype.Text
 }
 
 type WttjScrapeMetaDatum struct {

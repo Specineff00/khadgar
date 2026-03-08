@@ -13,6 +13,7 @@ type PersonalisedCompaniesPersonalisedCompaniesCompany struct {
 	Name             string                                                `json:"name"`
 	ShortDescription string                                                `json:"shortDescription"`
 	Size             PersonalisedCompaniesPersonalisedCompaniesCompanySize `json:"size"`
+	UrlSafeName      string                                                `json:"urlSafeName"`
 }
 
 // GetName returns PersonalisedCompaniesPersonalisedCompaniesCompany.Name, and is useful for accessing the field via an interface.
@@ -26,6 +27,11 @@ func (v *PersonalisedCompaniesPersonalisedCompaniesCompany) GetShortDescription(
 // GetSize returns PersonalisedCompaniesPersonalisedCompaniesCompany.Size, and is useful for accessing the field via an interface.
 func (v *PersonalisedCompaniesPersonalisedCompaniesCompany) GetSize() PersonalisedCompaniesPersonalisedCompaniesCompanySize {
 	return v.Size
+}
+
+// GetUrlSafeName returns PersonalisedCompaniesPersonalisedCompaniesCompany.UrlSafeName, and is useful for accessing the field via an interface.
+func (v *PersonalisedCompaniesPersonalisedCompaniesCompany) GetUrlSafeName() string {
+	return v.UrlSafeName
 }
 
 // PersonalisedCompaniesPersonalisedCompaniesCompanySize includes the requested fields of the GraphQL type CompanySize.
@@ -71,6 +77,7 @@ query PersonalisedCompanies ($offset: Int!, $limit: Int!, $companyName: String!)
 		size {
 			value
 		}
+		urlSafeName
 	}
 }
 `

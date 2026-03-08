@@ -27,3 +27,15 @@ func siteMarshalError(site, company string, err error) error {
 func siteRequestError(site, company string, err error) error {
 	return fmt.Errorf("request %s %s url: %w", site, company, err)
 }
+
+func (s *Service) logDBTransactionStartError(err error) {
+	s.Logger.Error("failed to start transaction", "err", err)
+}
+
+func (s *Service) logDBUpsertError(err error) {
+	s.Logger.Error("insert failed", "err", err)
+}
+
+func (s *Service) logDBCommitError(err error) {
+	s.Logger.Error("failed to commit", "err", err)
+}

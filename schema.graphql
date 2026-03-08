@@ -10,6 +10,7 @@ type Company {
   name: String
   shortDescription: String
   size: CompanySize
+  urlSafeName: String
 }
 
 type CompanySize {

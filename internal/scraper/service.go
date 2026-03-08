@@ -15,6 +15,7 @@ import (
 	"khadgar"
 
 	"github.com/Khan/genqlient/graphql"
+	"github.com/jackc/pgx/v5"
 )
 
 type Service struct {
@@ -77,13 +78,15 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 	all := make([]Company, 0, 2000)
 	seen := make(map[string]struct{}) // dedupe key
 	ctx = attachResponseMetaKey(ctx)
+	startPage := s.getScrapeStartPage(ctx)
 
 	s.Logger.Info("scrape started",
+		"page", startPage,
 		"limit", limit,
 		"max_pages", maxPages,
 	)
 
-	for page := range maxPages {
+	for page := startPage; page < maxPages; page++ {
 
 		var resp *khadgar.PersonalisedCompaniesResponse
 		err := s.doWithRetry(ctx, func(ctx context.Context) (statusCode int, err error) {
@@ -101,7 +104,8 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 			resp = r
 			return http.StatusOK, nil
 		})
-		if err != nil {
+		if err != nil { // Error from retryable or other defined errors
+			s.saveScrapePosition(page, false)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				s.logFetchFailed(page, len(all), err)
 				return all, fmt.Errorf("scrape canceled: %v", err)
@@ -109,32 +113,70 @@ func (s *Service) FetchCompanies(ctx context.Context) ([]Company, error) {
 			s.logFetchFailed(page, len(all), err)
 			return all, fmt.Errorf("fetch companies page=%d failed after retries: %v", page, err)
 		}
+
+		// No reponse errors
 		if resp == nil {
+			s.saveScrapePosition(page, false)
 			s.logFetchFailed(page, len(all), err)
 			return all, fmt.Errorf("fetch companies page=%d returned nil response", page)
 		}
 
 		cCount := len(resp.PersonalisedCompanies)
+
+		// No more data
 		if cCount == 0 {
-			// No more data
 			s.logFetchComplete(page, len(all))
+			s.saveScrapePosition(page, true)
 			return all, nil
 		}
 
+		// Get the data into shape and in the list
 		mappedPage := toCompanies(resp.PersonalisedCompanies)
 		all = mergeUnique(all, mappedPage, seen)
 		s.logPageFetch(page, len(all))
+		s.saveScrapePosition(page, false)
 
 		// Last partial page => likely end.
 		// So 32 would be considered added and therefore it's time to break out and finish
 		if shouldStop(cCount, limit) {
 			s.logFetchComplete(page, len(all))
+			s.saveScrapePosition(page, true)
 			return all, nil
 		}
 	}
 
+	// Unlikely scenario but covered to return all
 	s.logFetchComplete(999, len(all))
 	return all, nil
+}
+
+func (s *Service) saveScrapePosition(page int, completed bool) {
+	ctx := context.Background()
+	pool := s.DB.Pool()
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		s.logDBTransactionStartError(err)
+		return
+	}
+
+	func() {
+		defer tx.Rollback(ctx)
+
+		queries := sqlc.New(pool).WithTx(tx)
+		arg := sqlc.UpsertWTTJScrapeMetaDataParams{
+			NextPage:  int32(page + 1),
+			Completed: completed,
+		}
+		if err := queries.UpsertWTTJScrapeMetaData(ctx, arg); err != nil {
+			s.logDBUpsertError(err)
+			return
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			s.logDBCommitError(err)
+		}
+	}()
 }
 
 func (s *Service) InsertCompaniesBatched(companies []Company) {
@@ -147,7 +189,7 @@ func (s *Service) InsertCompaniesBatched(companies []Company) {
 
 		tx, err := pool.Begin(ctx)
 		if err != nil {
-			s.Logger.Error("failed to start transaction", "err", err)
+			s.logDBTransactionStartError(err)
 			os.Exit(1)
 		}
 
@@ -166,13 +208,13 @@ func (s *Service) InsertCompaniesBatched(companies []Company) {
 
 				err := queries.InsertCompany(ctx, arg)
 				if err != nil {
-					s.Logger.Error("insert failed")
+					s.logDBUpsertError(err)
 					return
 				}
 			}
 
 			if err := tx.Commit(ctx); err != nil {
-				s.Logger.Error("failed to commit", "err", err)
+				s.logDBCommitError(err)
 			}
 		}()
 	}
@@ -207,5 +249,19 @@ func attachResponseMetaKey(ctx context.Context) context.Context {
 	return context.WithValue(ctx, responseMetaKey{}, meta)
 }
 
-func saveScrapePosition() error {
+func (s *Service) getScrapeStartPage(ctx context.Context) int {
+	queries := sqlc.New(s.DB.Pool())
+	row, err := queries.GetWTTJScrapeMetaData(ctx)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0
+		}
+		s.Logger.Error("failed to load checkpoint", "err", err)
+		return 0
+	}
+	if row.Completed {
+		s.Logger.Info("scrape previoulsy completed. restarting")
+		return 0
+	}
+	return int(row.NextPage)
 }

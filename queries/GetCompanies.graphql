@@ -3,5 +3,6 @@ query PersonalisedCompanies($offset: Int!, $limit: Int!, $companyName: String!) 
 	    name
 	    shortDescription
 	    size { value }
+      urlSafeName
 	  }
 }
