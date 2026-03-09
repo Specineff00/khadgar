@@ -137,3 +137,16 @@ func (w WorkableCompany) mapToJobRows(company string) []JobRow {
 	}
 	return jobRows
 }
+
+func (s *Service) tryWorkableAndUpsert(ctx context.Context, companyID int, company, search string) {
+	httpClient := NewRESTClient()
+	workableCompany, err := FetchWorkableJobs(ctx, httpClient, company, search)
+	if err != nil {
+		s.Logger.Error(err.Error())
+		return
+	}
+
+	mapped := workableCompany.mapToJobRows(company)
+	s.Logger.Info("attempting to insert jobs", "jobs", mapped)
+	s.upsertJobs(ctx, mapped, companyID, search)
+}

@@ -145,3 +145,15 @@ func (t TeamTailorCompany) mapToJobRows() []JobRow {
 	}
 	return jobRows
 }
+
+func (s *Service) tryTeamTailorAndUpsert(ctx context.Context, companyID int, company, search string) {
+	httpClient := NewRESTClient()
+	teamTailorCompany, err := FetchTeamTailorJobs(ctx, httpClient, company, search)
+	if err != nil {
+		s.Logger.Error(err.Error())
+		return
+	}
+
+	mapped := teamTailorCompany.mapToJobRows()
+	s.upsertJobs(ctx, mapped, companyID, search)
+}

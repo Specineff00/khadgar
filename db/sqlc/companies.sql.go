@@ -11,6 +11,42 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getAllCompanies = `-- name: GetAllCompanies :many
+SELECT id, name, url_safe_name, short_description, size, created_at, updated_at, working_url, site_name, last_checked_at, attempts FROM companies
+`
+
+func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
+	rows, err := q.db.Query(ctx, getAllCompanies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Company
+	for rows.Next() {
+		var i Company
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.UrlSafeName,
+			&i.ShortDescription,
+			&i.Size,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.WorkingUrl,
+			&i.SiteName,
+			&i.LastCheckedAt,
+			&i.Attempts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertCompany = `-- name: InsertCompany :exec
 INSERT INTO companies(name, url_safe_name, short_description, size)
 VALUES (

@@ -15,7 +15,8 @@ const deactivateStaleJobs = `-- name: DeactivateStaleJobs :exec
 UPDATE jobs
 SET active = FALSE
 WHERE company_id = $1
-  AND last_seen_at < $2
+  AND last_seen_at <
+  $2
 `
 
 type DeactivateStaleJobsParams struct {

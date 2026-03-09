@@ -80,3 +80,15 @@ func (g GreenhouseCompany) mapToJobRows() []JobRow {
 	}
 	return jobRows
 }
+
+func (s *Service) tryGreenhouseAndUpsert(ctx context.Context, companyID int, company, search string) {
+	httpClient := NewRESTClient()
+	greenhouseCompany, err := FetchGreenhouseJobs(ctx, httpClient, company, search)
+	if err != nil {
+		s.Logger.Error(err.Error())
+		return
+	}
+
+	mapped := greenhouseCompany.mapToJobRows()
+	s.upsertJobs(ctx, mapped, companyID, search)
+}
