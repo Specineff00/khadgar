@@ -18,3 +18,8 @@ SET
   updated_at = NOW()
 WHERE name = sqlc.arg('name');
   
+
+-- name: GetUncheckedCompanies :many
+SELECT id, url_safe_name FROM companies
+  WHERE site_name is NULL
+  ORDER BY attempts ASC, id ASC;

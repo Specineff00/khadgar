@@ -11,32 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getAllCompanies = `-- name: GetAllCompanies :many
-SELECT id, name, url_safe_name, short_description, size, created_at, updated_at, working_url, site_name, last_checked_at, attempts FROM companies
+const getUncheckedCompanies = `-- name: GetUncheckedCompanies :many
+SELECT id, url_safe_name FROM companies
+  WHERE site_name is NULL
+  ORDER BY attempts ASC, id ASC
 `
 
-func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
-	rows, err := q.db.Query(ctx, getAllCompanies)
+type GetUncheckedCompaniesRow struct {
+	ID          int64
+	UrlSafeName string
+}
+
+func (q *Queries) GetUncheckedCompanies(ctx context.Context) ([]GetUncheckedCompaniesRow, error) {
+	rows, err := q.db.Query(ctx, getUncheckedCompanies)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Company
+	var items []GetUncheckedCompaniesRow
 	for rows.Next() {
-		var i Company
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.UrlSafeName,
-			&i.ShortDescription,
-			&i.Size,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.WorkingUrl,
-			&i.SiteName,
-			&i.LastCheckedAt,
-			&i.Attempts,
-		); err != nil {
+		var i GetUncheckedCompaniesRow
+		if err := rows.Scan(&i.ID, &i.UrlSafeName); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
