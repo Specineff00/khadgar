@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
+
+const leverSite = "lever"
 
 type LeverCompany struct {
 	Jobs LeverJobs
@@ -29,36 +32,43 @@ type LeverJobs []struct {
 	HostedURL            string `json:"hostedUrl"`
 }
 
+func doLeverRequest(
+	ctx context.Context,
+	httpClient *http.Client,
+	company string,
+) (*http.Response, error) {
+	url := fmt.Sprintf("https://api.lever.co/v0/postings/%s?mode=json", company)
+	return doRequest(ctx, httpClient, http.MethodGet, url, nil, leverSite, company)
+}
+
+func checkLeverJobs(
+	ctx context.Context,
+	httpClient *http.Client,
+	company string,
+) error {
+	resp, err := doLeverRequest(ctx, httpClient, company)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
 func FetchLeverJobs(
 	ctx context.Context,
 	httpClient *http.Client,
 	company, search string,
 ) (*LeverCompany, error) {
-	site := "lever"
-	url := fmt.Sprintf("https://api.lever.co/v0/postings/%s?mode=json", company)
-	retryErr := siteCompanyRetryError(site, company)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := doLeverRequest(ctx, httpClient, company)
 	if err != nil {
-		return nil, siteRequestError(site, company, err)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		if isRetryable(err, 0) {
-			return nil, retryErr
-		}
-		return nil, fmt.Errorf("%s %s: %w", site, company, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, checkSiteStatusError(site, company, resp.StatusCode)
-	}
-
 	var lc LeverJobs
 	if err := json.NewDecoder(resp.Body).Decode(&lc); err != nil {
-		return nil, retryErr
+		return nil, siteCompanyRetryError(leverSite, company)
 	}
 
 	filtered := lc[:0]
@@ -70,6 +80,10 @@ func FetchLeverJobs(
 	}
 
 	return &LeverCompany{Jobs: filtered}, nil
+}
+
+func leverCompanyLink(company string) string {
+	return fmt.Sprintf("https://jobs.lever.co/%s", company)
 }
 
 func (l LeverCompany) mapToJobRows() []JobRow {

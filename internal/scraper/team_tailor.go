@@ -3,11 +3,14 @@ package scraper
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+const teamTailorSite = "teamtailor"
 
 type TeamTailorCompany struct {
 	Jobs []TeamTailorJob
@@ -21,36 +24,43 @@ type TeamTailorJob struct {
 	WorkType string // Hybrid/Remote
 }
 
+func doTeamTailorRequest(
+	ctx context.Context,
+	httpClient *http.Client,
+	company, search string,
+) (*http.Response, error) {
+	url := fmt.Sprintf("https://%s.teamtailor.com/jobs?query=%s", company, search)
+	return doRequest(ctx, httpClient, http.MethodGet, url, nil, teamTailorSite, company)
+}
+
+func checkTeamTailorCompany(
+	ctx context.Context,
+	httpClient *http.Client,
+	company string,
+) error {
+	resp, err := doTeamTailorRequest(ctx, httpClient, company, "")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
 func FetchTeamTailorJobs(
 	ctx context.Context,
 	httpClient *http.Client,
 	company, search string,
 ) (*TeamTailorCompany, error) {
-	site := "team tailor"
-	url := fmt.Sprintf("https://%s.teamtailor.com/jobs?query=%s", company, search)
-	retryErr := siteCompanyRetryError(site, company)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := doTeamTailorRequest(ctx, httpClient, company, search)
 	if err != nil {
-		return nil, siteRequestError(site, company, err)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		if isRetryable(err, 0) {
-			return nil, retryErr
-		}
-		return nil, fmt.Errorf("%s %s: %w", site, company, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, checkSiteStatusError(site, company, resp.StatusCode)
-	}
-
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return nil, retryErr
+		return nil, siteCompanyRetryError(teamTailorSite, company)
 	}
 
 	// TeamTailor career pages are server-side rendered HTML (not JSON).
@@ -128,6 +138,10 @@ func FetchTeamTailorJobs(
 	})
 
 	return result, nil
+}
+
+func teamTailorCompanyLink(company string) string {
+	return fmt.Sprintf("https://%s.teamtailor.com/#jobs", company)
 }
 
 func (t TeamTailorCompany) mapToJobRows() []JobRow {

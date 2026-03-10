@@ -1,6 +1,11 @@
 package scraper
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -32,4 +37,54 @@ func NewRESTClient() *http.Client {
 			},
 		},
 	}
+}
+
+func doRequest(
+	ctx context.Context,
+	httpClient *http.Client,
+	method string,
+	url string,
+	payload any,
+	site string,
+	company string,
+) (*http.Response, error) {
+	retryError := siteCompanyRetryError(site, company)
+
+	var request *http.Request
+	if payload != nil {
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return nil, siteMarshalError(site, company, err)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+		if err != nil {
+			return nil, siteRequestError(site, company, err)
+		}
+		request = req
+	} else {
+		req, err := http.NewRequestWithContext(ctx, method, url, nil)
+		if err != nil {
+			return nil, siteRequestError(site, company, err)
+		}
+		request = req
+	}
+
+	resp, err := httpClient.Do(request)
+	if err != nil {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+		if isRetryable(err, 0) {
+			return nil, retryError
+		}
+		return nil, fmt.Errorf("%s %s: %w", site, company, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		return nil, checkSiteStatusError(site, company, resp.StatusCode)
+	}
+
+	return resp, nil
 }

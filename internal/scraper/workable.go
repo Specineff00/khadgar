@@ -1,7 +1,6 @@
 package scraper
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -40,6 +39,24 @@ type WorkablePayload struct {
 	Worktype   []string `json:"worktype"`
 }
 
+func doWorkableRequest(
+	ctx context.Context,
+	httpClient *http.Client,
+	company, search string,
+) (*http.Response, error) {
+	url := fmt.Sprintf("https://apply.workable.com/api/v3/accounts/%s/jobs", company)
+
+	payload := WorkablePayload{
+		Query:      search,
+		Department: []string{},
+		Location:   []string{},
+		Worktype:   []string{},
+		Workplace:  []string{},
+	}
+
+	return doRequest(ctx, httpClient, http.MethodPost, url, payload, workableSite, company)
+}
+
 func checkWorkableJobs(
 	ctx context.Context,
 	httpClient *http.Client,
@@ -59,7 +76,6 @@ func fetchWorkableJobs(
 	httpClient *http.Client,
 	company, search string,
 ) (*WorkableCompany, error) {
-	retryError := siteCompanyRetryError(workableSite, company)
 	resp, err := doWorkableRequest(ctx, httpClient, company, search)
 	if err != nil {
 		return nil, err
@@ -68,56 +84,14 @@ func fetchWorkableJobs(
 
 	var result *WorkableCompany
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, retryError
+		return nil, siteCompanyRetryError(workableSite, company)
 	}
 
 	return result, nil
 }
 
-func doWorkableRequest(
-	ctx context.Context,
-	httpClient *http.Client,
-	company, search string,
-) (*http.Response, error) {
-	url := fmt.Sprintf("https://apply.workable.com/api/v3/accounts/%s/jobs", company)
-	retryError := siteCompanyRetryError(workableSite, company)
-
-	payload := WorkablePayload{
-		Query:      search,
-		Department: []string{},
-		Location:   []string{},
-		Worktype:   []string{},
-		Workplace:  []string{},
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, siteMarshalError(workableSite, company, err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, siteRequestError(workableSite, company, err)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
-		if isRetryable(err, 0) {
-			return nil, retryError
-		}
-		return nil, fmt.Errorf("%s %s: %w", workableSite, company, err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-		return nil, checkSiteStatusError(workableSite, company, resp.StatusCode)
-	}
-
-	return resp, nil
+func workableCompanyLink(company string) string {
+	return fmt.Sprintf("https://apply.workable.com/%s", company)
 }
 
 func workableJobLink(company string, id int) string {

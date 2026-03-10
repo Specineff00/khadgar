@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
+
+const greenhouseSite = "greenhouse"
 
 type GreenhouseCompany struct {
 	Jobs []struct {
@@ -22,36 +25,43 @@ type GreenhouseCompany struct {
 	} `json:"jobs"`
 }
 
+func doGreenhouseRequest(
+	ctx context.Context,
+	httpClient *http.Client,
+	company string,
+) (*http.Response, error) {
+	url := fmt.Sprintf("https://boards-api.greenhouse.io/v1/boards/%s/jobs?content=true", company)
+	return doRequest(ctx, httpClient, http.MethodGet, url, nil, greenhouseSite, company)
+}
+
+func checkGreenhouseCompany(
+	ctx context.Context,
+	httpClient *http.Client,
+	company string,
+) error {
+	resp, err := doGreenhouseRequest(ctx, httpClient, company)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
 func FetchGreenhouseJobs(
 	ctx context.Context,
 	httpClient *http.Client,
 	company, search string,
 ) (*GreenhouseCompany, error) {
-	site := "greenhouse"
-	url := fmt.Sprintf("https://boards-api.greenhouse.io/v1/boards/%s/jobs?content=true", company)
-	retryErr := siteCompanyRetryError(site, company)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := doGreenhouseRequest(ctx, httpClient, company)
 	if err != nil {
-		return nil, siteRequestError(site, company, err)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		if isRetryable(err, 0) {
-			return nil, retryErr
-		}
-		return nil, fmt.Errorf("%s %s: %w", site, company, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, checkSiteStatusError(site, company, resp.StatusCode)
-	}
-
 	var gc *GreenhouseCompany
 	if err := json.NewDecoder(resp.Body).Decode(&gc); err != nil {
-		return nil, retryErr
+		return nil, siteCompanyRetryError(greenhouseSite, company)
 	}
 
 	filtered := gc.Jobs[:0]
@@ -64,6 +74,10 @@ func FetchGreenhouseJobs(
 	gc.Jobs = filtered
 
 	return gc, nil
+}
+
+func greenhouseCompanyLink(company string) string {
+	return fmt.Sprintf("https://boards.greenhouse.io/%s/", company)
 }
 
 func (g GreenhouseCompany) mapToJobRows() []JobRow {
