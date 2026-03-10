@@ -34,7 +34,7 @@ func doGreenhouseRequest(
 	return doRequest(ctx, httpClient, http.MethodGet, url, nil, greenhouseSite, company)
 }
 
-func checkGreenhouseCompany(
+func checkGreenhouseJobs(
 	ctx context.Context,
 	httpClient *http.Client,
 	company string,

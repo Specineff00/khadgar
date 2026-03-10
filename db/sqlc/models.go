@@ -20,6 +20,8 @@ type Company struct {
 	SiteName         pgtype.Text
 	LastCheckedAt    pgtype.Timestamptz
 	Attempts         int32
+	ShouldRetry      bool
+	AllSitesChecked  bool
 }
 
 type Job struct {

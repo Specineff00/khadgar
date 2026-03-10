@@ -15,10 +15,11 @@ SET
   site_name = sqlc.narg('site_name'),
   last_checked_at = NOW(),
   attempts = attempts + 1,
-  updated_at = NOW()
+  updated_at = NOW(),
+  should_retry = sqlc.arg('should_retry'),
+  all_sites_checked = sqlc.arg('all_sites_checked') 
 WHERE name = sqlc.arg('name');
   
-
 -- name: GetUncheckedCompanies :many
 SELECT id, url_safe_name FROM companies
   WHERE site_name is NULL

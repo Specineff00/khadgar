@@ -33,7 +33,7 @@ func doTeamTailorRequest(
 	return doRequest(ctx, httpClient, http.MethodGet, url, nil, teamTailorSite, company)
 }
 
-func checkTeamTailorCompany(
+func checkTeamTailorJobs(
 	ctx context.Context,
 	httpClient *http.Client,
 	company string,

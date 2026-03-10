@@ -77,17 +77,27 @@ SET
   site_name = $2,
   last_checked_at = NOW(),
   attempts = attempts + 1,
-  updated_at = NOW()
-WHERE name = $3
+  updated_at = NOW(),
+  should_retry = $3,
+  all_sites_checked = $4 
+WHERE name = $5
 `
 
 type UpdateCompanyJobSiteParams struct {
-	WorkingUrl pgtype.Text
-	SiteName   pgtype.Text
-	Name       string
+	WorkingUrl      pgtype.Text
+	SiteName        pgtype.Text
+	ShouldRetry     bool
+	AllSitesChecked bool
+	Name            string
 }
 
 func (q *Queries) UpdateCompanyJobSite(ctx context.Context, arg UpdateCompanyJobSiteParams) error {
-	_, err := q.db.Exec(ctx, updateCompanyJobSite, arg.WorkingUrl, arg.SiteName, arg.Name)
+	_, err := q.db.Exec(ctx, updateCompanyJobSite,
+		arg.WorkingUrl,
+		arg.SiteName,
+		arg.ShouldRetry,
+		arg.AllSitesChecked,
+		arg.Name,
+	)
 	return err
 }
