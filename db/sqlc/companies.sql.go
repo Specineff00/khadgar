@@ -12,13 +12,13 @@ import (
 )
 
 const getUncheckedCompanies = `-- name: GetUncheckedCompanies :many
-SELECT id, url_safe_name FROM companies
-  WHERE site_name is NULL
+SELECT name, url_safe_name FROM companies
+  WHERE all_sites_checked is FALSE OR should_retry IS TRUE
   ORDER BY attempts ASC, id ASC
 `
 
 type GetUncheckedCompaniesRow struct {
-	ID          int64
+	Name        string
 	UrlSafeName string
 }
 
@@ -31,7 +31,7 @@ func (q *Queries) GetUncheckedCompanies(ctx context.Context) ([]GetUncheckedComp
 	var items []GetUncheckedCompaniesRow
 	for rows.Next() {
 		var i GetUncheckedCompaniesRow
-		if err := rows.Scan(&i.ID, &i.UrlSafeName); err != nil {
+		if err := rows.Scan(&i.Name, &i.UrlSafeName); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -15,6 +15,8 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+const maxChoices = 4
+
 //go:generate go run github.com/Khan/genqlient ../../genqlient.yaml
 func main() {
 	retryConfig := scraper.RetryConfig{
@@ -44,13 +46,7 @@ func main() {
 	case 3:
 		insertCompaniesFromFileToDB(service)
 	case 4:
-		testWorkableScrape(service)
-	case 5:
-		testGreenhouseScrape(service)
-	case 6:
-		testTeamTailor(service)
-	case 7:
-		testLeverScrape(service)
+		runDiscoverSites(service)
 	default:
 		logger.Error("Not a valid choice!")
 		os.Exit(1)
@@ -116,7 +112,8 @@ func getChoice(logger *slog.Logger) int {
 	if len(os.Args) > 1 {
 		choice, err := strconv.Atoi(os.Args[1])
 		if err != nil || !choiceRangeCondition(choice) {
-			logger.Error("invalid CLI choice; use 1 - 7", "arg", os.Args[1], "err", err)
+			errMsg := fmt.Sprintf("invalid CLI choice; use 1 - %d", maxChoices)
+			logger.Error(errMsg, "arg", os.Args[1], "err", err)
 			os.Exit(1)
 		}
 		return choice
@@ -126,11 +123,8 @@ func getChoice(logger *slog.Logger) int {
 	fmt.Println("1. Scrape companies from WTTJ to file")
 	fmt.Println("2. Scrape companies from WTTJ to DB")
 	fmt.Println("3. Insert companies from file to DB")
-	fmt.Println("4. Test workable scrape on starling bank")
-	fmt.Println("5. Test greenhouse scrape on monzo")
-	fmt.Println("6. Test team tailor scrape on chip")
-	fmt.Println("7. Test lever scrape on moonpig")
-	fmt.Print("Choice (1 - 7): ")
+	fmt.Println("4. Discover sites! 👀")
+	fmt.Printf("Choice (1 - %d): ", maxChoices)
 
 	var choice int
 	if _, err := fmt.Scanln(&choice); err != nil {
@@ -145,73 +139,17 @@ func getChoice(logger *slog.Logger) int {
 }
 
 func choiceRangeCondition(choice int) bool {
-	return choice >= 1 || choice <= 7
+	return choice >= 1 || choice <= maxChoices
 }
 
-func testWorkableScrape(service *scraper.Service) {
+func runDiscoverSites(service *scraper.Service) {
+	ctx := context.Background()
 	httpClient := scraper.NewRESTClient()
-	jobs, err := scraper.FetchWorkableJobs(
-		context.Background(),
-		httpClient,
-		"starling-bank",
-		"ios",
-	)
+	ch, err := service.FeedCompaniesChannel(ctx)
 	if err != nil {
 		service.Logger.Error(err.Error())
 		os.Exit(1)
 	}
 
-	service.Logger.Info("fetch succeeded: %v", "jobs", jobs.Jobs)
-	os.Exit(0)
-}
-
-func testGreenhouseScrape(service *scraper.Service) {
-	httpClient := scraper.NewRESTClient()
-	jobs, err := scraper.FetchGreenhouseJobs(
-		context.Background(),
-		httpClient,
-		"monzo",
-		"ios",
-	)
-	if err != nil {
-		service.Logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	service.Logger.Info("fetch succeeded: %w", "jobs", jobs.Jobs)
-	os.Exit(0)
-}
-
-func testLeverScrape(service *scraper.Service) {
-	httpClient := scraper.NewRESTClient()
-	jobs, err := scraper.FetchLeverJobs(
-		context.Background(),
-		httpClient,
-		"moonpig",
-		"engineer",
-	)
-	if err != nil {
-		service.Logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	service.Logger.Info("fetch succeeded: %w", "jobs", jobs.Jobs)
-	os.Exit(0)
-}
-
-func testTeamTailor(service *scraper.Service) {
-	httpClient := scraper.NewRESTClient()
-	jobs, err := scraper.FetchTeamTailorJobs(
-		context.Background(),
-		httpClient,
-		"chip",
-		"developer",
-	)
-	if err != nil {
-		service.Logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	service.Logger.Info("fetch succeeded: %w", "jobs", jobs.Jobs)
-	os.Exit(0)
+	service.RunDiscoverSiteWorkers(ctx, httpClient, ch)
 }

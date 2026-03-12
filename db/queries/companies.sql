@@ -21,6 +21,6 @@ SET
 WHERE name = sqlc.arg('name');
   
 -- name: GetUncheckedCompanies :many
-SELECT id, url_safe_name FROM companies
-  WHERE site_name is NULL
+SELECT name, url_safe_name FROM companies
+  WHERE all_sites_checked is FALSE OR should_retry IS TRUE
   ORDER BY attempts ASC, id ASC;
