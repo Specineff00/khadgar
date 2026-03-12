@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	"khadgar/db/sqlc"
 	"khadgar/internal/platform/database"
@@ -18,6 +19,11 @@ import (
 const (
 	chanBufferSize = 256
 	numWorkers     = 50
+)
+
+var (
+	done           atomic.Int64
+	totalCompanies int
 )
 
 type Service struct {
@@ -102,12 +108,19 @@ func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, com
 				AllSitesChecked: false,
 			})
 			return
-		}
-
-		// Carry on to the next if not found
-		if errors.Is(err, ErrNotFound) {
+		} else if errors.Is(err, ErrNotFound) { // Carry on to the next if not found
 			s.Logger.Warn("specific site not found", "site", site.name, "err", err)
 			continue
+		} else {
+			s.Logger.Warn("other error occured! saving for retry for now", "site", site.name, "err", err)
+			queries.UpdateCompanyJobSite(ctx, sqlc.UpdateCompanyJobSiteParams{
+				Name:            company.Name,
+				WorkingUrl:      pgtype.Text{String: site.urlFn(company.UrlSafeName), Valid: true},
+				SiteName:        pgtype.Text{String: site.name, Valid: true},
+				ShouldRetry:     true,
+				AllSitesChecked: false,
+			})
+			return
 		}
 	}
 
@@ -128,6 +141,7 @@ func (s *Service) FeedCompaniesChannel(ctx context.Context) (chan sqlc.GetUnchec
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve unchecked companies: %w", err)
 	}
+	totalCompanies = len(companies)
 
 	companyCh := make(chan sqlc.GetUncheckedCompaniesRow, chanBufferSize)
 
@@ -151,8 +165,20 @@ func (s *Service) RunDiscoverSiteWorkers(
 	for range numWorkers {
 		go func() {
 			defer s.wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					s.Logger.Error("worker panic", "panic", r)
+				}
+			}()
 			for company := range companyCh {
 				s.DiscoverSite(ctx, httpClient, company)
+				done.Add(1)
+				s.Logger.Info(
+					"finished checking out sites",
+					"company", company.Name,
+					"done", done.Load(),
+					"total-companies", totalCompanies,
+				)
 			}
 		}()
 	}
