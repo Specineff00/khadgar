@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-const workableSite = "workable"
+const (
+	workableSite = "workable"
+	workableHost = "apply.workable.com"
+)
 
 type WorkableCompany struct {
 	Total int `json:"total"`
@@ -44,7 +47,7 @@ func doWorkableRequest(
 	httpClient *http.Client,
 	company, search string,
 ) (*http.Response, error) {
-	url := fmt.Sprintf("https://apply.workable.com/api/v3/accounts/%s/jobs", company)
+	url := fmt.Sprintf("https://%s/api/v3/accounts/%s/jobs", workableHost, company)
 
 	payload := WorkablePayload{
 		Query:      search,

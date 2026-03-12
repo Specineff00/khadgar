@@ -74,7 +74,7 @@ func doRequest(
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
 		}
-		if isRetryable(err, 0) {
+		if isRetryable(err, resp.StatusCode) || resp.StatusCode == 403 { // 403 specially added in for temp blocks
 			return nil, retryError
 		}
 		return nil, fmt.Errorf("%s %s: %w", site, company, err)

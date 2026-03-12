@@ -9,7 +9,10 @@ import (
 	"strings"
 )
 
-const leverSite = "lever"
+const (
+	leverSite = "lever"
+	leverHost = "api.lever.co"
+)
 
 type LeverCompany struct {
 	Jobs LeverJobs
@@ -37,7 +40,7 @@ func doLeverRequest(
 	httpClient *http.Client,
 	company string,
 ) (*http.Response, error) {
-	url := fmt.Sprintf("https://api.lever.co/v0/postings/%s?mode=json", company)
+	url := fmt.Sprintf("https://%s/v0/postings/%s?mode=json", leverHost, company)
 	return doRequest(ctx, httpClient, http.MethodGet, url, nil, leverSite, company)
 }
 

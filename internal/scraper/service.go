@@ -18,7 +18,7 @@ import (
 
 const (
 	chanBufferSize = 256
-	numWorkers     = 50
+	numWorkers     = 5
 )
 
 var (
@@ -32,6 +32,7 @@ type Service struct {
 	GQClient    graphql.Client
 	Logger      *slog.Logger
 	wg          *sync.WaitGroup
+	rateLimiter *TokenBucketLimiter
 }
 
 type Company struct {
@@ -63,24 +64,33 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (
 		GQClient:    client,
 		Logger:      logger.With("component", "scraper"),
 		wg:          &sync.WaitGroup{},
+		rateLimiter: NewTokenBucketLimiter(2, 3),
 	}, nil
 }
 
 func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, company sqlc.GetUncheckedCompaniesRow) {
 	sites := []struct {
 		name    string
+		host    string
 		checkFn func(ctx context.Context, httpClient *http.Client, company string) error
 		urlFn   func(company string) string
 	}{
-		{workableSite, checkWorkableJobs, workableCompanyLink},
-		{greenhouseSite, checkGreenhouseJobs, greenhouseCompanyLink},
-		{leverSite, checkLeverJobs, leverCompanyLink},
-		{teamTailorSite, checkTeamTailorJobs, teamTailorCompanyLink},
+		{teamTailorSite, teamTailorHost, checkTeamTailorJobs, teamTailorCompanyLink},
+		{greenhouseSite, greenhouseHost, checkGreenhouseJobs, greenhouseCompanyLink},
+		{leverSite, leverHost, checkLeverJobs, leverCompanyLink},
+		{workableSite, workableHost, checkWorkableJobs, workableCompanyLink},
 	}
 
 	queries := sqlc.New(s.DB.Pool())
 
 	for _, site := range sites {
+		// Wait for token to free up before continuing
+		s.Logger.Info("waiting for token", "site", site.name, "company", company.Name)
+		if err := s.rateLimiter.Wait(ctx, site.host); err != nil {
+			s.Logger.Warn("ctx cancelled/done", "err", err)
+			return
+		}
+
 		s.Logger.Info("checking started", "company", company.Name)
 		err := site.checkFn(ctx, httpClient, company.UrlSafeName)
 		// Found site!

@@ -10,7 +10,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const teamTailorSite = "teamtailor"
+const (
+	teamTailorSite = "teamtailor"
+	teamTailorHost = "teamtailor.com"
+)
 
 type TeamTailorCompany struct {
 	Jobs []TeamTailorJob
@@ -29,7 +32,7 @@ func doTeamTailorRequest(
 	httpClient *http.Client,
 	company, search string,
 ) (*http.Response, error) {
-	url := fmt.Sprintf("https://%s.teamtailor.com/jobs?query=%s", company, search)
+	url := fmt.Sprintf("https://%s.%s/jobs?query=%s", company, teamTailorHost, search)
 	return doRequest(ctx, httpClient, http.MethodGet, url, nil, teamTailorSite, company)
 }
 

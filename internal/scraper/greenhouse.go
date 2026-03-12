@@ -9,7 +9,10 @@ import (
 	"strings"
 )
 
-const greenhouseSite = "greenhouse"
+const (
+	greenhouseSite = "greenhouse"
+	greenhouseHost = "boards.greenhouse.io"
+)
 
 type GreenhouseCompany struct {
 	Jobs []struct {
@@ -30,7 +33,7 @@ func doGreenhouseRequest(
 	httpClient *http.Client,
 	company string,
 ) (*http.Response, error) {
-	url := fmt.Sprintf("https://boards-api.greenhouse.io/v1/boards/%s/jobs?content=true", company)
+	url := fmt.Sprintf("https://%s/v1/boards/%s/jobs?content=true", greenhouseHost, company)
 	return doRequest(ctx, httpClient, http.MethodGet, url, nil, greenhouseSite, company)
 }
 
@@ -77,7 +80,7 @@ func FetchGreenhouseJobs(
 }
 
 func greenhouseCompanyLink(company string) string {
-	return fmt.Sprintf("https://boards.greenhouse.io/%s/", company)
+	return fmt.Sprintf("https://%s/%s/", greenhouseHost, company)
 }
 
 func (g GreenhouseCompany) mapToJobRows() []JobRow {
