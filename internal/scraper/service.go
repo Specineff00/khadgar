@@ -58,13 +58,16 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
+	rl := NewTokenBucketLimiter(2, 3)
+	rl.setHostLimiter(workableHost, 0.5, 1)
+	rl.setHostLimiter(leverHost, 1, 1)
 	return &Service{
 		RetryConfig: retry,
 		DB:          db,
 		GQClient:    client,
 		Logger:      logger.With("component", "scraper"),
 		wg:          &sync.WaitGroup{},
-		rateLimiter: NewTokenBucketLimiter(2, 3),
+		rateLimiter: rl,
 	}, nil
 }
 
@@ -177,7 +180,7 @@ func (s *Service) RunDiscoverSiteWorkers(
 			defer s.wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					s.Logger.Error("worker panic", "panic", r)
+					s.Logger.Error("worker panic", "panic", fmt.Sprint(r))
 				}
 			}()
 			for company := range companyCh {
