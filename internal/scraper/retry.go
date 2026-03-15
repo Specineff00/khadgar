@@ -190,6 +190,6 @@ func (s *Service) logRetryAfter(delay time.Duration) {
 	)
 }
 
-func siteCompanyRetryError(site, company string) error {
-	return fmt.Errorf("%s %s: %w", site, company, ErrShouldRetry)
+func siteCompanyRetryError(site, company string, err error) error {
+	return fmt.Errorf("%s %s: %w, %w", site, company, ErrShouldRetry, err)
 }

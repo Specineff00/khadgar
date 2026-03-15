@@ -13,7 +13,8 @@ var (
 
 func checkSiteStatusError(site, company string, statusCode int) error {
 	if isRetryableStatus(statusCode) {
-		return siteCompanyRetryError(site, company)
+		fmt.Printf("status code %d\n", statusCode)
+		return siteCompanyRetryError(site, company, nil)
 	} else if statusCode == http.StatusNotFound {
 		return fmt.Errorf("%s %s: %w", site, company, ErrNotFound)
 	}

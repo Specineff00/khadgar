@@ -71,7 +71,7 @@ func FetchLeverJobs(
 
 	var lc LeverJobs
 	if err := json.NewDecoder(resp.Body).Decode(&lc); err != nil {
-		return nil, siteCompanyRetryError(leverSite, company)
+		return nil, siteCompanyRetryError(leverSite, company, err)
 	}
 
 	filtered := lc[:0]

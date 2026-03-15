@@ -64,7 +64,7 @@ func FetchGreenhouseJobs(
 
 	var gc *GreenhouseCompany
 	if err := json.NewDecoder(resp.Body).Decode(&gc); err != nil {
-		return nil, siteCompanyRetryError(greenhouseSite, company)
+		return nil, siteCompanyRetryError(greenhouseSite, company, err)
 	}
 
 	filtered := gc.Jobs[:0]

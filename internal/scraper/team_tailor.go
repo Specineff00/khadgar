@@ -63,7 +63,7 @@ func FetchTeamTailorJobs(
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return nil, siteCompanyRetryError(teamTailorSite, company)
+		return nil, siteCompanyRetryError(teamTailorSite, company, err)
 	}
 
 	// TeamTailor career pages are server-side rendered HTML (not JSON).

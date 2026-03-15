@@ -48,7 +48,9 @@ func doRequest(
 	site string,
 	company string,
 ) (*http.Response, error) {
-	retryError := siteCompanyRetryError(site, company)
+	retryError := func(err error) error {
+		return siteCompanyRetryError(site, company, err)
+	}
 
 	var request *http.Request
 	if payload != nil {
@@ -74,8 +76,8 @@ func doRequest(
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
 		}
-		if isRetryable(err, resp.StatusCode) || resp.StatusCode == 403 { // 403 specially added in for temp blocks
-			return nil, retryError
+		if isRetryable(err, 0) {
+			return nil, retryError(err)
 		}
 		return nil, fmt.Errorf("%s %s: %w", site, company, err)
 	}

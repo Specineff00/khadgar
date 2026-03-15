@@ -87,7 +87,7 @@ func fetchWorkableJobs(
 
 	var result *WorkableCompany
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, siteCompanyRetryError(workableSite, company)
+		return nil, siteCompanyRetryError(workableSite, company, err)
 	}
 
 	return result, nil
