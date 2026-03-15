@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"khadgar"
 	"khadgar/db/sqlc"
-	"net/http"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -170,7 +171,7 @@ func (s *Service) logPageFetch(page, fetched int) {
 }
 
 func attachResponseMetaKey(ctx context.Context) context.Context {
-	meta := ResponseMeta{}
+	meta := &ResponseMeta{}
 	return context.WithValue(ctx, responseMetaKey{}, meta)
 }
 

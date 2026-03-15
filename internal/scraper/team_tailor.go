@@ -46,7 +46,16 @@ func checkTeamTailorJobs(
 		return err
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return siteCompanyRetryError(teamTailorSite, company, err)
+	}
+	s := strings.ToLower(string(body))
+
+	if ok := strings.Contains(s, "demo career site"); ok {
+		return ErrNotFound
+	}
+
 	return nil
 }
 

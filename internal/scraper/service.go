@@ -173,6 +173,7 @@ func (s *Service) RunDiscoverSiteWorkers(
 	httpClient *http.Client,
 	companyCh <-chan sqlc.GetUncheckedCompaniesRow,
 ) {
+	ctx = attachResponseMetaKey(ctx)
 	s.wg.Add(numWorkers)
 
 	for range numWorkers {
