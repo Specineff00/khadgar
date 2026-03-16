@@ -17,7 +17,10 @@ SET
   attempts = attempts + 1,
   updated_at = NOW(),
   should_retry = sqlc.arg('should_retry'),
-  all_sites_checked = sqlc.arg('all_sites_checked') 
+  greenhouse_checked = sqlc.arg('greenhouse_checked'), 
+  team_tailor_checked = sqlc.arg('team_tailor_checked'), 
+  lever_checked = sqlc.arg('lever_checked'),
+  workable_checked = sqlc.arg('workable_checked')
 WHERE name = sqlc.arg('name');
   
 -- name: GetUncheckedCompanies :many

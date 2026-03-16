@@ -9,19 +9,22 @@ import (
 )
 
 type Company struct {
-	ID               int64
-	Name             string
-	UrlSafeName      string
-	ShortDescription string
-	Size             string
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	WorkingUrl       pgtype.Text
-	SiteName         pgtype.Text
-	LastCheckedAt    pgtype.Timestamptz
-	Attempts         int32
-	ShouldRetry      bool
-	AllSitesChecked  bool
+	ID                int64
+	Name              string
+	UrlSafeName       string
+	ShortDescription  string
+	Size              string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	WorkingUrl        pgtype.Text
+	SiteName          pgtype.Text
+	LastCheckedAt     pgtype.Timestamptz
+	Attempts          int32
+	ShouldRetry       bool
+	GreenhouseChecked bool
+	TeamTailorChecked bool
+	LeverChecked      bool
+	WorkableChecked   bool
 }
 
 type Job struct {

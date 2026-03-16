@@ -79,16 +79,22 @@ SET
   attempts = attempts + 1,
   updated_at = NOW(),
   should_retry = $3,
-  all_sites_checked = $4 
-WHERE name = $5
+  greenhouse_checked = $4, 
+  team_tailor_checked = $5, 
+  lever_checked = $6,
+  workable_checked = $7
+WHERE name = $8
 `
 
 type UpdateCompanyJobSiteParams struct {
-	WorkingUrl      pgtype.Text
-	SiteName        pgtype.Text
-	ShouldRetry     bool
-	AllSitesChecked bool
-	Name            string
+	WorkingUrl        pgtype.Text
+	SiteName          pgtype.Text
+	ShouldRetry       bool
+	GreenhouseChecked bool
+	TeamTailorChecked bool
+	LeverChecked      bool
+	WorkableChecked   bool
+	Name              string
 }
 
 func (q *Queries) UpdateCompanyJobSite(ctx context.Context, arg UpdateCompanyJobSiteParams) error {
@@ -96,7 +102,10 @@ func (q *Queries) UpdateCompanyJobSite(ctx context.Context, arg UpdateCompanyJob
 		arg.WorkingUrl,
 		arg.SiteName,
 		arg.ShouldRetry,
-		arg.AllSitesChecked,
+		arg.GreenhouseChecked,
+		arg.TeamTailorChecked,
+		arg.LeverChecked,
+		arg.WorkableChecked,
 		arg.Name,
 	)
 	return err
