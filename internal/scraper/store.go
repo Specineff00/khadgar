@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"khadgar/db/sqlc"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (s *Service) InsertCompaniesBatched(companies []Company) {
@@ -92,4 +94,12 @@ func (s *Service) upsertJobs(
 			s.logDBCommitError(err)
 		}
 	}()
+}
+
+func optionalText(s string) pgtype.Text {
+	if s == "" {
+		return pgtype.Text{Valid: false}
+	} else {
+		return pgtype.Text{String: s, Valid: true}
+	}
 }

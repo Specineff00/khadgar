@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"khadgar/db/sqlc"
 )
 
 const (
@@ -108,4 +110,19 @@ func (s *Service) tryGreenhouseAndUpsert(ctx context.Context, companyID int, com
 
 	mapped := greenhouseCompany.mapToJobRows()
 	s.upsertJobs(ctx, mapped, companyID, search)
+}
+
+func updateCompanyGreenhouse(
+	ctx context.Context,
+	queries *sqlc.Queries,
+	company sqlc.GetUncheckedCompaniesRow,
+	result updateResult,
+) error {
+	return queries.UpdateGreenhouseJobSite(ctx, sqlc.UpdateGreenhouseJobSiteParams{
+		WorkingUrl:        optionalText(result.workingURL),
+		SiteName:          optionalText(result.siteName),
+		ShouldRetry:       result.shouldRetry,
+		GreenhouseChecked: true,
+		Name:              company.Name,
+	})
 }

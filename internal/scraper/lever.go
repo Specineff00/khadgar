@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"khadgar/db/sqlc"
 )
 
 const (
@@ -115,4 +117,19 @@ func (s *Service) tryLeverAndUpsert(ctx context.Context, companyID int, company,
 
 	mapped := leverCompany.mapToJobRows()
 	s.upsertJobs(ctx, mapped, companyID, search)
+}
+
+func updateCompanyLever(
+	ctx context.Context,
+	queries *sqlc.Queries,
+	company sqlc.GetUncheckedCompaniesRow,
+	result updateResult,
+) error {
+	return queries.UpdateLeverJobSite(ctx, sqlc.UpdateLeverJobSiteParams{
+		WorkingUrl:   optionalText(result.workingURL),
+		SiteName:     optionalText(result.siteName),
+		ShouldRetry:  result.shouldRetry,
+		LeverChecked: true,
+		Name:         company.Name,
+	})
 }

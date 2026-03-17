@@ -13,7 +13,6 @@ import (
 	"khadgar/internal/platform/database"
 
 	"github.com/Khan/genqlient/graphql"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const (
@@ -42,15 +41,31 @@ type Company struct {
 	URLSafeName      string
 }
 
+type updateResult struct {
+	found       bool
+	workingURL  string
+	siteName    string
+	shouldRetry bool
+}
+
+type siteChecker struct {
+	name    string
+	host    string
+	checkFn func(ctx context.Context, httpClient *http.Client, company string) error
+	urlFn   func(company string) string
+	updater func(
+		ctx context.Context,
+		queries *sqlc.Queries,
+		company sqlc.GetUncheckedCompaniesRow,
+		result updateResult,
+	) error
+}
+
 type JobRow struct {
 	id       string
 	title    string
 	url      string
 	location string
-}
-
-type JobProvider interface {
-	FetchAndUpsert(ctx context.Context, companyID int, company, search string)
 }
 
 func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (*Service, error) {
@@ -72,16 +87,10 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (
 }
 
 func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, company sqlc.GetUncheckedCompaniesRow) {
-	sites := []struct {
-		name    string
-		host    string
-		checkFn func(ctx context.Context, httpClient *http.Client, company string) error
-		urlFn   func(company string) string
-	}{
-		{teamTailorSite, teamTailorHost, checkTeamTailorJobs, teamTailorCompanyLink},
-		{greenhouseSite, greenhouseHost, checkGreenhouseJobs, greenhouseCompanyLink},
-		{leverSite, leverHost, checkLeverJobs, leverCompanyLink},
-		{workableSite, workableHost, checkWorkableJobs, workableCompanyLink},
+	sites := []siteChecker{
+		{teamTailorSite, teamTailorHost, checkTeamTailorJobs, teamTailorCompanyLink, updateCompanyTeamTailor},
+		{greenhouseSite, greenhouseHost, checkGreenhouseJobs, greenhouseCompanyLink, updateCompanyGreenhouse},
+		{leverSite, leverHost, checkLeverJobs, leverCompanyLink, updateCompanyLever},
 	}
 
 	queries := sqlc.New(s.DB.Pool())
@@ -99,13 +108,17 @@ func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, com
 		// Found site!
 		if err == nil {
 			s.Logger.Info("found site", "company", company.Name)
-			queries.UpdateCompanyJobSite(ctx, sqlc.UpdateCompanyJobSiteParams{
-				Name:            company.Name,
-				WorkingUrl:      pgtype.Text{String: site.urlFn(company.UrlSafeName), Valid: true},
-				SiteName:        pgtype.Text{String: site.name, Valid: true},
-				ShouldRetry:     false,
-				AllSitesChecked: true,
-			})
+			result := updateResult{
+				found:       true,
+				workingURL:  site.urlFn(company.UrlSafeName),
+				siteName:    site.name,
+				shouldRetry: false,
+			}
+			err := site.updater(ctx, queries, company, result)
+			if err != nil {
+				s.Logger.Warn("update failed", "company", company.Name)
+				return
+			}
 			s.Logger.Info("saved site", "company", company.Name)
 			return
 		}
@@ -113,39 +126,29 @@ func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, com
 		// Set to retry
 		if errors.Is(err, ErrShouldRetry) {
 			s.Logger.Warn("retry error", "err", err)
-			queries.UpdateCompanyJobSite(ctx, sqlc.UpdateCompanyJobSiteParams{
-				Name:            company.Name,
-				WorkingUrl:      pgtype.Text{String: site.urlFn(company.UrlSafeName), Valid: true},
-				SiteName:        pgtype.Text{String: site.name, Valid: true},
-				ShouldRetry:     true,
-				AllSitesChecked: false,
-			})
+			err := site.updater(ctx, queries, company, updateResult{shouldRetry: true})
+			if err != nil {
+				s.Logger.Warn("update failed", "company", company.Name)
+				return
+			}
 			return
 		} else if errors.Is(err, ErrNotFound) { // Carry on to the next if not found
 			s.Logger.Warn("specific site not found", "site", site.name, "err", err)
+			err := site.updater(ctx, queries, company, updateResult{})
+			if err != nil {
+				s.Logger.Warn("update failed", "company", company.Name)
+				continue
+			}
 			continue
-		} else {
-			s.Logger.Warn("other error occured! saving for retry for now", "site", site.name, "err", err)
-			queries.UpdateCompanyJobSite(ctx, sqlc.UpdateCompanyJobSiteParams{
-				Name:            company.Name,
-				WorkingUrl:      pgtype.Text{String: site.urlFn(company.UrlSafeName), Valid: true},
-				SiteName:        pgtype.Text{String: site.name, Valid: true},
-				ShouldRetry:     true,
-				AllSitesChecked: false,
-			})
+		}
+
+		s.Logger.Warn("other error occured! saving for retry for now", "site", site.name, "err", err)
+		if updateErr := site.updater(ctx, queries, company, updateResult{shouldRetry: true}); updateErr != nil {
+			s.Logger.Warn("update failed", "company", company.Name)
 			return
 		}
+		return
 	}
-
-	// All sites visited and nothing found
-	s.Logger.Warn("no site found for company", "company", company.Name)
-	queries.UpdateCompanyJobSite(ctx, sqlc.UpdateCompanyJobSiteParams{
-		Name:            company.Name,
-		WorkingUrl:      pgtype.Text{Valid: false},
-		SiteName:        pgtype.Text{Valid: false},
-		ShouldRetry:     false,
-		AllSitesChecked: true,
-	})
 }
 
 func (s *Service) FeedCompaniesChannel(ctx context.Context) (chan sqlc.GetUncheckedCompaniesRow, error) {

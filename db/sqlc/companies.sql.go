@@ -70,7 +70,7 @@ func (q *Queries) InsertCompany(ctx context.Context, arg InsertCompanyParams) er
 	return err
 }
 
-const updateCompanyJobSite = `-- name: UpdateCompanyJobSite :exec
+const updateGreenhouseJobSite = `-- name: UpdateGreenhouseJobSite :exec
 UPDATE companies
 SET 
   working_url = $1,
@@ -79,32 +79,119 @@ SET
   attempts = attempts + 1,
   updated_at = NOW(),
   should_retry = $3,
-  greenhouse_checked = $4, 
-  team_tailor_checked = $5, 
-  lever_checked = $6,
-  workable_checked = $7
-WHERE name = $8
+  greenhouse_checked = $4 
+WHERE name = $5
 `
 
-type UpdateCompanyJobSiteParams struct {
+type UpdateGreenhouseJobSiteParams struct {
 	WorkingUrl        pgtype.Text
 	SiteName          pgtype.Text
 	ShouldRetry       bool
 	GreenhouseChecked bool
-	TeamTailorChecked bool
-	LeverChecked      bool
-	WorkableChecked   bool
 	Name              string
 }
 
-func (q *Queries) UpdateCompanyJobSite(ctx context.Context, arg UpdateCompanyJobSiteParams) error {
-	_, err := q.db.Exec(ctx, updateCompanyJobSite,
+func (q *Queries) UpdateGreenhouseJobSite(ctx context.Context, arg UpdateGreenhouseJobSiteParams) error {
+	_, err := q.db.Exec(ctx, updateGreenhouseJobSite,
 		arg.WorkingUrl,
 		arg.SiteName,
 		arg.ShouldRetry,
 		arg.GreenhouseChecked,
-		arg.TeamTailorChecked,
+		arg.Name,
+	)
+	return err
+}
+
+const updateLeverJobSite = `-- name: UpdateLeverJobSite :exec
+UPDATE companies
+SET 
+  working_url = $1,
+  site_name = $2,
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW(),
+  should_retry = $3,
+  lever_checked = $4
+WHERE name = $5
+`
+
+type UpdateLeverJobSiteParams struct {
+	WorkingUrl   pgtype.Text
+	SiteName     pgtype.Text
+	ShouldRetry  bool
+	LeverChecked bool
+	Name         string
+}
+
+func (q *Queries) UpdateLeverJobSite(ctx context.Context, arg UpdateLeverJobSiteParams) error {
+	_, err := q.db.Exec(ctx, updateLeverJobSite,
+		arg.WorkingUrl,
+		arg.SiteName,
+		arg.ShouldRetry,
 		arg.LeverChecked,
+		arg.Name,
+	)
+	return err
+}
+
+const updateTeamTailorJobSite = `-- name: UpdateTeamTailorJobSite :exec
+UPDATE companies
+SET 
+  working_url = $1,
+  site_name = $2,
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW(),
+  should_retry = $3,
+  team_tailor_checked = $4 
+WHERE name = $5
+`
+
+type UpdateTeamTailorJobSiteParams struct {
+	WorkingUrl        pgtype.Text
+	SiteName          pgtype.Text
+	ShouldRetry       bool
+	TeamTailorChecked bool
+	Name              string
+}
+
+func (q *Queries) UpdateTeamTailorJobSite(ctx context.Context, arg UpdateTeamTailorJobSiteParams) error {
+	_, err := q.db.Exec(ctx, updateTeamTailorJobSite,
+		arg.WorkingUrl,
+		arg.SiteName,
+		arg.ShouldRetry,
+		arg.TeamTailorChecked,
+		arg.Name,
+	)
+	return err
+}
+
+const updateWorkableJobSite = `-- name: UpdateWorkableJobSite :exec
+UPDATE companies
+SET 
+  working_url = $1,
+  site_name = $2,
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW(),
+  should_retry = $3,
+  workable_checked = $4
+WHERE name = $5
+`
+
+type UpdateWorkableJobSiteParams struct {
+	WorkingUrl      pgtype.Text
+	SiteName        pgtype.Text
+	ShouldRetry     bool
+	WorkableChecked bool
+	Name            string
+}
+
+func (q *Queries) UpdateWorkableJobSite(ctx context.Context, arg UpdateWorkableJobSiteParams) error {
+	_, err := q.db.Exec(ctx, updateWorkableJobSite,
+		arg.WorkingUrl,
+		arg.SiteName,
+		arg.ShouldRetry,
 		arg.WorkableChecked,
 		arg.Name,
 	)

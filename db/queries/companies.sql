@@ -8,7 +8,7 @@ VALUES (
 )
 ON CONFLICT (name) DO NOTHING;
 
--- name: UpdateCompanyJobSite :exec
+-- name: UpdateWorkableJobSite :exec
 UPDATE companies
 SET 
   working_url = sqlc.narg('working_url'),
@@ -17,12 +17,45 @@ SET
   attempts = attempts + 1,
   updated_at = NOW(),
   should_retry = sqlc.arg('should_retry'),
-  greenhouse_checked = sqlc.arg('greenhouse_checked'), 
-  team_tailor_checked = sqlc.arg('team_tailor_checked'), 
-  lever_checked = sqlc.arg('lever_checked'),
   workable_checked = sqlc.arg('workable_checked')
 WHERE name = sqlc.arg('name');
-  
+
+-- name: UpdateTeamTailorJobSite :exec
+UPDATE companies
+SET 
+  working_url = sqlc.narg('working_url'),
+  site_name = sqlc.narg('site_name'),
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW(),
+  should_retry = sqlc.arg('should_retry'),
+  team_tailor_checked = sqlc.arg('team_tailor_checked') 
+WHERE name = sqlc.arg('name');
+
+-- name: UpdateGreenhouseJobSite :exec
+UPDATE companies
+SET 
+  working_url = sqlc.narg('working_url'),
+  site_name = sqlc.narg('site_name'),
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW(),
+  should_retry = sqlc.arg('should_retry'),
+  greenhouse_checked = sqlc.arg('greenhouse_checked') 
+WHERE name = sqlc.arg('name');
+
+-- name: UpdateLeverJobSite :exec
+UPDATE companies
+SET 
+  working_url = sqlc.narg('working_url'),
+  site_name = sqlc.narg('site_name'),
+  last_checked_at = NOW(),
+  attempts = attempts + 1,
+  updated_at = NOW(),
+  should_retry = sqlc.arg('should_retry'),
+  lever_checked = sqlc.arg('lever_checked')
+WHERE name = sqlc.arg('name');
+
 -- name: GetUncheckedCompanies :many
 SELECT name, url_safe_name FROM companies
   WHERE all_sites_checked is FALSE OR should_retry IS TRUE

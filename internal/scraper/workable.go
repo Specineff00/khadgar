@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"khadgar/db/sqlc"
 )
 
 const (
@@ -127,4 +129,19 @@ func (s *Service) tryWorkableAndUpsert(ctx context.Context, companyID int, compa
 	mapped := workableCompany.mapToJobRows(company)
 	s.Logger.Info("attempting to insert jobs", "jobs", mapped)
 	s.upsertJobs(ctx, mapped, companyID, search)
+}
+
+func updateCompanyWorkable(
+	ctx context.Context,
+	queries *sqlc.Queries,
+	company sqlc.GetUncheckedCompaniesRow,
+	result updateResult,
+) error {
+	return queries.UpdateWorkableJobSite(ctx, sqlc.UpdateWorkableJobSiteParams{
+		WorkingUrl:      optionalText(result.workingURL),
+		SiteName:        optionalText(result.siteName),
+		ShouldRetry:     result.shouldRetry,
+		WorkableChecked: true,
+		Name:            company.Name,
+	})
 }

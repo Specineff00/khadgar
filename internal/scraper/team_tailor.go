@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"khadgar/db/sqlc"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -182,4 +184,19 @@ func (s *Service) tryTeamTailorAndUpsert(ctx context.Context, companyID int, com
 
 	mapped := teamTailorCompany.mapToJobRows()
 	s.upsertJobs(ctx, mapped, companyID, search)
+}
+
+func updateCompanyTeamTailor(
+	ctx context.Context,
+	queries *sqlc.Queries,
+	company sqlc.GetUncheckedCompaniesRow,
+	result updateResult,
+) error {
+	return queries.UpdateTeamTailorJobSite(ctx, sqlc.UpdateTeamTailorJobSiteParams{
+		WorkingUrl:        optionalText(result.workingURL),
+		SiteName:          optionalText(result.siteName),
+		ShouldRetry:       result.shouldRetry,
+		TeamTailorChecked: true,
+		Name:              company.Name,
+	})
 }
