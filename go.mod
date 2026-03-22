@@ -12,7 +12,6 @@ require (
 	github.com/gocolly/colly v1.2.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260209200024-4cfbd4190f57
 )
 
 require (
