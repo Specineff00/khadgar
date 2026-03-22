@@ -82,7 +82,7 @@ func (s *Service) doWithRetry(ctx context.Context, fn func(context.Context) (sta
 	var lastErr error
 
 	for attempt := range s.RetryConfig.MaxAttempts {
-		statusCode, err := fn(ctx)
+		statusCode, err := fn(ctx) // Perform do here!
 		if err == nil {
 			return nil
 		}

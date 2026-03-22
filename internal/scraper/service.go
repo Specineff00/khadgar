@@ -33,7 +33,6 @@ type Service struct {
 	wg             *sync.WaitGroup
 	rateLimiter    *TokenBucketLimiter
 	siteErrorCount map[string]atomic.Int32
-	mu             *sync.Mutex
 }
 
 type Company struct {
@@ -90,7 +89,7 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (
 
 func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, company sqlc.GetUncheckedCompaniesRow) {
 	sites := []siteChecker{
-		{teamTailorSite, teamTailorHost, CheckTeamTailorJobs, teamTailorCompanyLink, updateCompanyTeamTailor},
+		{teamTailorSite, teamTailorHost, checkTeamTailorJobs, teamTailorCompanyLink, updateCompanyTeamTailor},
 		{greenhouseSite, greenhouseHost, checkGreenhouseJobs, greenhouseCompanyLink, updateCompanyGreenhouse},
 		{leverSite, leverHost, checkLeverJobs, leverCompanyLink, updateCompanyLever},
 	}
@@ -130,7 +129,6 @@ func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, com
 		if errors.Is(err, ErrShouldRetry) {
 			s.Logger.Warn("retry error", "err", err)
 			err := site.updater(ctx, queries, company, updateResult{shouldRetry: true})
-			s.mu.Lock()
 			if err != nil {
 				s.Logger.Warn("update failed", "company", company.Name)
 				return
