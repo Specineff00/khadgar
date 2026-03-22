@@ -13,7 +13,10 @@ import (
 
 const getUncheckedCompanies = `-- name: GetUncheckedCompanies :many
 SELECT name, url_safe_name FROM companies
-  WHERE all_sites_checked is FALSE OR should_retry IS TRUE
+  WHERE greenhouse_checked is FALSE
+  OR lever_checked is FALSE
+  OR team_tailor_checked is FALSE
+  OR should_retry IS TRUE
   ORDER BY attempts ASC, id ASC
 `
 
@@ -67,6 +70,25 @@ func (q *Queries) InsertCompany(ctx context.Context, arg InsertCompanyParams) er
 		arg.ShortDescription,
 		arg.Size,
 	)
+	return err
+}
+
+const resetCompaniesJobColumns = `-- name: ResetCompaniesJobColumns :exec
+UPDATE companies
+SET
+  working_url = NULL,
+  site_name = NULL,
+  last_checked_at = NULL,
+  attempts = 0,
+  should_retry = FALSE,
+  workable_checked = FALSE,
+  greenhouse_checked = FALSE,
+  team_tailor_checked = FALSE,
+  lever_checked = FALSE
+`
+
+func (q *Queries) ResetCompaniesJobColumns(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, resetCompaniesJobColumns)
 	return err
 }
 

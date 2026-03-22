@@ -26,12 +26,14 @@ var (
 )
 
 type Service struct {
-	RetryConfig RetryConfig
-	DB          *database.Runtime
-	GQClient    graphql.Client
-	Logger      *slog.Logger
-	wg          *sync.WaitGroup
-	rateLimiter *TokenBucketLimiter
+	RetryConfig    RetryConfig
+	DB             *database.Runtime
+	GQClient       graphql.Client
+	Logger         *slog.Logger
+	wg             *sync.WaitGroup
+	rateLimiter    *TokenBucketLimiter
+	siteErrorCount map[string]atomic.Int32
+	mu             *sync.Mutex
 }
 
 type Company struct {
@@ -74,21 +76,21 @@ func NewService(retry RetryConfig, client graphql.Client, logger *slog.Logger) (
 		return nil, err
 	}
 	rl := NewTokenBucketLimiter(2, 3)
-	rl.setHostLimiter(workableHost, 0.5, 1)
 	rl.setHostLimiter(leverHost, 1, 1)
 	return &Service{
-		RetryConfig: retry,
-		DB:          db,
-		GQClient:    client,
-		Logger:      logger.With("component", "scraper"),
-		wg:          &sync.WaitGroup{},
-		rateLimiter: rl,
+		RetryConfig:    retry,
+		DB:             db,
+		GQClient:       client,
+		Logger:         logger.With("component", "scraper"),
+		wg:             &sync.WaitGroup{},
+		rateLimiter:    rl,
+		siteErrorCount: make(map[string]atomic.Int32),
 	}, nil
 }
 
 func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, company sqlc.GetUncheckedCompaniesRow) {
 	sites := []siteChecker{
-		{teamTailorSite, teamTailorHost, checkTeamTailorJobs, teamTailorCompanyLink, updateCompanyTeamTailor},
+		{teamTailorSite, teamTailorHost, CheckTeamTailorJobs, teamTailorCompanyLink, updateCompanyTeamTailor},
 		{greenhouseSite, greenhouseHost, checkGreenhouseJobs, greenhouseCompanyLink, updateCompanyGreenhouse},
 		{leverSite, leverHost, checkLeverJobs, leverCompanyLink, updateCompanyLever},
 	}
@@ -96,14 +98,15 @@ func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, com
 	queries := sqlc.New(s.DB.Pool())
 
 	for _, site := range sites {
+
 		// Wait for token to free up before continuing
-		s.Logger.Info("waiting for token", "site", site.name, "company", company.Name)
+		// s.Logger.Info("waiting for token", "site", site.name, "company", company.Name)
 		if err := s.rateLimiter.Wait(ctx, site.host); err != nil {
 			s.Logger.Warn("ctx cancelled/done", "err", err)
 			return
 		}
 
-		s.Logger.Info("checking started", "company", company.Name)
+		// s.Logger.Info("checking started", "company", company.Name)
 		err := site.checkFn(ctx, httpClient, company.UrlSafeName)
 		// Found site!
 		if err == nil {
@@ -127,6 +130,7 @@ func (s *Service) DiscoverSite(ctx context.Context, httpClient *http.Client, com
 		if errors.Is(err, ErrShouldRetry) {
 			s.Logger.Warn("retry error", "err", err)
 			err := site.updater(ctx, queries, company, updateResult{shouldRetry: true})
+			s.mu.Lock()
 			if err != nil {
 				s.Logger.Warn("update failed", "company", company.Name)
 				return

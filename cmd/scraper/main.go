@@ -15,7 +15,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-const maxChoices = 4
+const maxChoices = 6
 
 //go:generate go run github.com/Khan/genqlient ../../genqlient.yaml
 func main() {
@@ -124,6 +124,7 @@ func getChoice(logger *slog.Logger) int {
 	fmt.Println("2. Scrape companies from WTTJ to DB")
 	fmt.Println("3. Insert companies from file to DB")
 	fmt.Println("4. Discover sites! 👀")
+	fmt.Println("6. Reset ALL company checks")
 	fmt.Printf("Choice (1 - %d): ", maxChoices)
 
 	var choice int
@@ -152,4 +153,13 @@ func runDiscoverSites(service *scraper.Service) {
 	}
 
 	service.RunDiscoverSiteWorkers(ctx, httpClient, ch)
+}
+
+func resetAllCompanyChecks(service *scraper.Service) {
+	err := service.ResetAllCompanyChecked()
+	if err != nil {
+		fmt.Printf("err %v", err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }

@@ -96,6 +96,11 @@ func (s *Service) upsertJobs(
 	}()
 }
 
+func (s *Service) ResetAllCompanyChecked() error {
+	queries := sqlc.New(s.DB.Pool())
+	return queries.ResetCompaniesJobColumns(context.Background())
+}
+
 func optionalText(s string) pgtype.Text {
 	if s == "" {
 		return pgtype.Text{Valid: false}
