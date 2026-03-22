@@ -9,11 +9,17 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"khadgar/internal/scraper/mock"
 )
+
+var errCannotMarshal = errors.New("cannot unmarshal")
 
 type mockBody struct {
 	Name string `json:"name"`
 }
+
+type unmarshalable struct{}
 
 func TestNewGraphClient_ReturnsNonNullClient(t *testing.T) {
 	c := NewGraphQLClient("http://graphql.com")
@@ -35,7 +41,7 @@ func TestNewRESTClient_ReturnsNonNullClient(t *testing.T) {
 
 func TestDoRequest_InvalidBodyReturnsError(t *testing.T) {
 	httpClient := &http.Client{
-		Transport: &mockTransport{},
+		Transport: mock.Transport(),
 	}
 	site := "lever"
 	company := "acme"
@@ -63,7 +69,7 @@ func TestDoRequest_InvalidBodyReturnsError(t *testing.T) {
 
 func TestDoRequest_InvalidMethodReturnsError(t *testing.T) {
 	httpClient := &http.Client{
-		Transport: MockTransport.New(),
+		Transport: mock.Transport(),
 	}
 	site := "lever"
 	company := "acme"
@@ -96,7 +102,7 @@ func TestDoRequest_InvalidMethodReturnsError(t *testing.T) {
 
 func TestDoRequest_NoBodyInvalidURLReturnsError(t *testing.T) {
 	httpClient := &http.Client{
-		Transport: MockTransport.New(),
+		Transport: mock.Transport(),
 	}
 	site := "lever"
 	company := "acme"
@@ -129,7 +135,7 @@ func TestDoRequest_NoBodyInvalidURLReturnsError(t *testing.T) {
 
 func TestDoRequest_NoBodyInvalidMethodReturnsError(t *testing.T) {
 	httpClient := &http.Client{
-		Transport: MockTransport.New(),
+		Transport: mock.Transport(),
 	}
 	site := "lever"
 	company := "acme"
@@ -162,7 +168,7 @@ func TestDoRequest_NoBodyInvalidMethodReturnsError(t *testing.T) {
 
 func TestDoRequest_InvalidURLReturnsError(t *testing.T) {
 	httpClient := &http.Client{
-		Transport: MockTransport.New(),
+		Transport: mock.Transport(),
 	}
 	site := "lever"
 	company := "acme"
@@ -196,7 +202,7 @@ func TestDoRequest_InvalidURLReturnsError(t *testing.T) {
 func TestDoRequest_OKResponseNilErrorReturnsResponse(t *testing.T) {
 	wantBody := `"ok": true`
 	httpClient := &http.Client{
-		Transport: MockTransport.New(),
+		Transport: mock.Transport(),
 	}
 	site := "lever"
 	company := "acme"
@@ -233,7 +239,7 @@ func TestDoRequest_OKResponseNilErrorReturnsResponse(t *testing.T) {
 func TestDoRequest_ResponseNonRetryableErrorReturnsError(t *testing.T) {
 	wantError := context.Canceled
 	httpClient := &http.Client{
-		Transport: MockTransport.WithError(wantError),
+		Transport: mock.Transport(mock.Error(wantError)),
 	}
 	site := "lever"
 	company := "acme"
@@ -263,7 +269,7 @@ func TestDoRequest_ResponseNonRetryableErrorReturnsError(t *testing.T) {
 func TestDoRequest_ResponseRetryableErrorReturnsError(t *testing.T) {
 	wantError := syscall.ECONNABORTED
 	httpClient := &http.Client{
-		Transport: MockTransport.WithError(wantError),
+		Transport: mock.Transport(mock.Error(wantError)),
 	}
 	site := "lever"
 	company := "acme"
@@ -292,7 +298,7 @@ func TestDoRequest_ResponseRetryableErrorReturnsError(t *testing.T) {
 
 func TestDoRequest_StatusCode300ReturnsError(t *testing.T) {
 	httpClient := &http.Client{
-		Transport: MockTransport.WithStatusCode(300),
+		Transport: mock.Transport(mock.StatusCode(300)),
 	}
 	site := "lever"
 	company := "acme"
@@ -320,57 +326,3 @@ func TestDoRequest_StatusCode300ReturnsError(t *testing.T) {
 		t.Errorf("incorrect status code, got %v want %v", err.Error(), wantCode)
 	}
 }
-
-//
-// func doRequest(
-// 	ctx context.Context,
-// 	httpClient *http.Client,
-// 	method string,
-// 	url string,
-// 	payload any,
-// 	site string,
-// 	company string,
-// ) (*http.Response, error) {
-// 	retryError := func(err error) error {
-// 		return siteCompanyRetryError(site, company, err)
-// 	}
-//
-// 	var request *http.Request
-// 	if payload != nil {
-// 		body, err := json.Marshal(payload)
-// 		if err != nil {
-// 			return nil, siteMarshalError(site, company, err)
-// 		}
-// 		req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
-// 		if err != nil {
-// 			return nil, siteRequestError(site, company, err)
-// 		}
-// 		request = req
-// 	} else {
-// 		req, err := http.NewRequestWithContext(ctx, method, url, nil)
-// 		if err != nil {
-// 			return nil, siteRequestError(site, company, err)
-// 		}
-// 		request = req
-// 	}
-//
-// 	resp, err := httpClient.Do(request)
-// 	if err != nil {
-// 		if resp != nil && resp.Body != nil {
-// 			resp.Body.Close()
-// 		}
-// 		if isRetryable(err, 0) {
-// 			return nil, retryError(err)
-// 		}
-// 		return nil, fmt.Errorf("%s %s: %w", site, company, err)
-// 	}
-//
-// 	if resp.StatusCode != http.StatusOK {
-// 		io.Copy(io.Discard, resp.Body)
-// 		resp.Body.Close()
-// 		return nil, checkSiteStatusError(site, company, resp.StatusCode)
-// 	}
-//
-// 	return resp, nil
-// }
-//
