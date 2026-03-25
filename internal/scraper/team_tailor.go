@@ -158,7 +158,7 @@ func teamTailorCompanyLink(company string) string {
 	return fmt.Sprintf("https://%s.teamtailor.com/#jobs", company)
 }
 
-func (t TeamTailorCompany) mapToJobRows() []JobRow {
+func (t *TeamTailorCompany) mapToJobRows() []JobRow {
 	jobRows := make([]JobRow, 0, len(t.Jobs))
 
 	for _, job := range t.Jobs {
@@ -174,8 +174,7 @@ func (t TeamTailorCompany) mapToJobRows() []JobRow {
 	return jobRows
 }
 
-func (s *Service) tryTeamTailorAndUpsert(ctx context.Context, companyID int, company, search string) {
-	httpClient := NewRESTClient()
+func (s *Service) tryTeamTailorAndUpsert(ctx context.Context, httpClient *http.Client, companyID int, company, search string) {
 	teamTailorCompany, err := FetchTeamTailorJobs(ctx, httpClient, company, search)
 	if err != nil {
 		s.Logger.Error(err.Error())

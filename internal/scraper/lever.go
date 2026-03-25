@@ -107,8 +107,7 @@ func (l LeverCompany) mapToJobRows() []JobRow {
 	return jobRows
 }
 
-func (s *Service) tryLeverAndUpsert(ctx context.Context, companyID int, company, search string) {
-	httpClient := NewRESTClient()
+func (s *Service) tryLeverAndUpsert(ctx context.Context, httpClient *http.Client, companyID int, company, search string) {
 	leverCompany, err := FetchLeverJobs(ctx, httpClient, company, search)
 	if err != nil {
 		s.Logger.Error(err.Error())

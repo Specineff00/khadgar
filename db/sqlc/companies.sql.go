@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getAllDiscoveredSitesBySiteName = `-- name: GetAllDiscoveredSitesBySiteName :many
+SELECT url_safe_name, id FROM companies
+  WHERE site_name = $1
+  ORDER BY site_name ASC
+`
+
+type GetAllDiscoveredSitesBySiteNameRow struct {
+	UrlSafeName string
+	ID          int64
+}
+
+func (q *Queries) GetAllDiscoveredSitesBySiteName(ctx context.Context, siteName pgtype.Text) ([]GetAllDiscoveredSitesBySiteNameRow, error) {
+	rows, err := q.db.Query(ctx, getAllDiscoveredSitesBySiteName, siteName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllDiscoveredSitesBySiteNameRow
+	for rows.Next() {
+		var i GetAllDiscoveredSitesBySiteNameRow
+		if err := rows.Scan(&i.UrlSafeName, &i.ID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUncheckedCompanies = `-- name: GetUncheckedCompanies :many
 SELECT name, url_safe_name FROM companies
   WHERE greenhouse_checked is FALSE

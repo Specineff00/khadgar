@@ -100,8 +100,12 @@ func (g GreenhouseCompany) mapToJobRows() []JobRow {
 	return jobRows
 }
 
-func (s *Service) tryGreenhouseAndUpsert(ctx context.Context, companyID int, company, search string) {
-	httpClient := NewRESTClient()
+func (s *Service) tryGreenhouseAndUpsert(
+	ctx context.Context,
+	httpClient *http.Client,
+	companyID int,
+	company, search string,
+) {
 	greenhouseCompany, err := FetchGreenhouseJobs(ctx, httpClient, company, search)
 	if err != nil {
 		s.Logger.Error(err.Error())

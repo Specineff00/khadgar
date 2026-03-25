@@ -64,6 +64,11 @@ SELECT name, url_safe_name FROM companies
   OR should_retry IS TRUE
   ORDER BY attempts ASC, id ASC;
 
+-- name: GetAllDiscoveredSitesBySiteName :many
+SELECT url_safe_name, id FROM companies
+  WHERE site_name = sqlc.arg(site_name)
+  ORDER BY site_name ASC;
+
 -- name: ResetCompaniesJobColumns :exec
 UPDATE companies
 SET
