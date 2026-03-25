@@ -28,7 +28,10 @@ func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// If the meta key exists then try get the value
 	if meta, ok := clone.Context().Value(responseMetaKey{}).(*ResponseMeta); ok {
 		meta.RetryAfter = resp.Header.Get("Retry-After")
-		fmt.Printf("retry after header: %s", meta.RetryAfter)
+		if meta.RetryAfter != "" {
+			fmt.Print("warning!\n")
+			fmt.Printf("retry after header: %s", meta.RetryAfter)
+		}
 	}
 	return resp, nil
 }

@@ -3,8 +3,9 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"khadgar/db/sqlc"
 	"net/http"
+
+	"khadgar/db/sqlc"
 )
 
 func (s *Service) GetAllJobs(search string) {
@@ -25,7 +26,13 @@ func (s *Service) GetAllJobs(search string) {
 			return
 		}
 		// Goroutine to fetch and upsert
-		s.RunFetchJobsWorkers(ctx, httpClient, search, jobChecker.fetchAndUpsertFn, companyCh)
+		s.RunFetchJobsWorkers(
+			ctx,
+			httpClient,
+			search,
+			jobChecker.fetchAndUpsertFn,
+			companyCh,
+		)
 	}
 }
 
@@ -61,7 +68,4 @@ func (s *Service) RunFetchJobsWorkers(
 			)
 		}
 	}
-}
-
-func (s *Service) FetchJobs() {
 }

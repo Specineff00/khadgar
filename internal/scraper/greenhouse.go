@@ -113,6 +113,7 @@ func (s *Service) tryGreenhouseAndUpsert(
 	}
 
 	mapped := greenhouseCompany.mapToJobRows()
+	s.Logger.Info("fetched jobs", "count", len(mapped), "company", company)
 	s.upsertJobs(ctx, mapped, companyID, search)
 }
 

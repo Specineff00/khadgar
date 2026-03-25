@@ -182,6 +182,7 @@ func (s *Service) tryTeamTailorAndUpsert(ctx context.Context, httpClient *http.C
 	}
 
 	mapped := teamTailorCompany.mapToJobRows()
+	s.Logger.Info("fetched jobs", "count", len(mapped), "company", company)
 	s.upsertJobs(ctx, mapped, companyID, search)
 }
 

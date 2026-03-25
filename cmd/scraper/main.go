@@ -47,6 +47,8 @@ func main() {
 		insertCompaniesFromFileToDB(service)
 	case 4:
 		runDiscoverSites(service)
+	case 5:
+		runJobFetch(service)
 	default:
 		logger.Error("Not a valid choice!")
 		os.Exit(1)
@@ -124,7 +126,9 @@ func getChoice(logger *slog.Logger) int {
 	fmt.Println("2. Scrape companies from WTTJ to DB")
 	fmt.Println("3. Insert companies from file to DB")
 	fmt.Println("4. Discover sites! 👀")
-	fmt.Println("6. Reset ALL company checks")
+	fmt.Println("5. Fetch jobs! 💼")
+	fmt.Println("6. Reset jobs! ❌")
+
 	fmt.Printf("Choice (1 - %d): ", maxChoices)
 
 	var choice int
@@ -140,7 +144,7 @@ func getChoice(logger *slog.Logger) int {
 }
 
 func choiceRangeCondition(choice int) bool {
-	return choice >= 1 || choice <= maxChoices
+	return choice >= 1 && choice <= maxChoices
 }
 
 func runDiscoverSites(service *scraper.Service) {
@@ -162,4 +166,12 @@ func resetAllCompanyChecks(service *scraper.Service) {
 		os.Exit(1)
 	}
 	os.Exit(0)
+}
+
+func runJobFetch(s *scraper.Service) {
+	s.GetAllJobs("ios")
+	os.Exit(0)
+}
+
+func resetJobs(s *scraper.Service) {
 }
